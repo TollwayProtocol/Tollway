@@ -1,0 +1,31 @@
+site: github.com
+version: "1"
+updated: "2026-03-09"
+maintainer: tollway-community
+path_pattern: "/{owner}/{repo}"
+
+output:
+  name: string
+  owner: string
+  description: string
+  stars: integer
+  forks: integer
+  language: string
+  license: string
+  topics: array
+  readme: string
+
+selectors:
+  name: "[itemprop='name'] strong a"
+  description: "[itemprop='about']"
+  stars: "#repo-stars-counter-star"
+  forks: "#repo-network-counter"
+  language: ".repository-content .d-inline [itemprop='programmingLanguage']"
+  license: ".BorderGrid-cell a[href*='LICENSE']"
+  topics: ".topic-tag"
+  readme: "article.markdown-body"
+
+test_urls:
+  - https://github.com/anthropics/anthropic-sdk-python
+  - https://github.com/langchain-ai/langchain
+  - https://github.com/vercel/next.js

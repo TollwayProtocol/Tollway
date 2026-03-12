@@ -1,0 +1,26 @@
+site: en.wikipedia.org
+version: "1"
+updated: "2026-03-09"
+maintainer: tollway-community
+
+output:
+  title: string
+  summary: string
+  sections: array
+  infobox: object
+  categories: array
+  last_edited: string
+
+selectors:
+  title: "h1#firstHeading"
+  summary: "#mw-content-text .mw-parser-output > p:first-of-type"
+  section_headings: ".mw-heading h2, .mw-heading h3"
+  section_content: ".mw-content-ltr p"
+  infobox: ".infobox tr"
+  categories: "#mw-normal-catlinks li a"
+  last_edited: "#footer-info-lastmod"
+
+test_urls:
+  - https://en.wikipedia.org/wiki/Artificial_intelligence
+  - https://en.wikipedia.org/wiki/Decentralized_identifier
+  - https://en.wikipedia.org/wiki/HTTP_402

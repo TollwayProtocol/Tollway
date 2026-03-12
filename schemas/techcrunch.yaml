@@ -1,0 +1,38 @@
+site: techcrunch.com
+version: "1"
+updated: "2026-03-09"
+maintainer: tollway-community
+
+output:
+  title: string
+  author: string
+  published_at: datetime
+  content: string
+  tags: array
+  canonical_url: string
+
+selectors:
+  title: "h1.article__title"
+  author: ".article__byline .article__byline-text a"
+  published_at: "time[datetime]"
+  content: ".article-content p"
+  tags: ".article__tags a"
+  canonical_url: "link[rel='canonical']"
+
+fallback_selectors:
+  title:
+    - "h1"
+    - 'meta[property="og:title"]'
+  author:
+    - ".byline"
+    - 'meta[name="author"]'
+  published_at:
+    - 'meta[property="article:published_time"]'
+  content:
+    - "article p"
+    - ".post-block p"
+
+test_urls:
+  - https://techcrunch.com/2025/01/15/sample-article-one/
+  - https://techcrunch.com/2025/02/20/sample-article-two/
+  - https://techcrunch.com/2025/03/01/sample-article-three/

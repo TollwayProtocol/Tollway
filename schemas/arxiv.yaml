@@ -1,0 +1,38 @@
+site: arxiv.org
+version: "1"
+updated: "2026-03-09"
+maintainer: tollway-community
+
+output:
+  title: string
+  authors: array
+  abstract: string
+  categories: array
+  published_at: date
+  arxiv_id: string
+  pdf_url: string
+  doi: string
+
+selectors:
+  title: "h1.title"
+  authors: ".authors a"
+  abstract: "blockquote.abstract"
+  categories: ".primary-subject, .secondary-subject"
+  published_at: ".submission-history"
+  arxiv_id: ".arxivid"
+
+transformations:
+  title:
+    strip_prefix: "Title:"
+  abstract:
+    strip_prefix: "Abstract:"
+  arxiv_id:
+    extract_pattern: 'arXiv:([0-9]+\.[0-9]+)'
+
+derived:
+  pdf_url: "https://arxiv.org/pdf/{arxiv_id}"
+
+test_urls:
+  - https://arxiv.org/abs/2301.07041
+  - https://arxiv.org/abs/2303.08774
+  - https://arxiv.org/abs/2312.11805
