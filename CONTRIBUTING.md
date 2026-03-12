@@ -25,7 +25,7 @@ Schemas are the fastest path to immediate value. Every schema you add means agen
 **Schema requirements:**
 - Must include at least `title` and `content` selectors
 - Must include 3+ `test_urls`
-- Selectors must work on current site HTML (we run CI against live sites weekly)
+- Selectors must work on current site HTML and include reproducible test URLs
 
 ---
 
