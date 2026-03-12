@@ -656,7 +656,7 @@
     </div>
     <div class="code-pane active" id="tab-agent">
 <pre><span class="cm">// Drop-in fetch replacement — handles everything automatically</span>
-<span class="kw">import</span> { <span class="fn">fetch</span> } <span class="kw">from</span> <span class="str">'tollway-client'</span>;
+<span class="kw">import</span> { <span class="fn">fetch</span> } <span class="kw">from</span> <span class="str">'@tollway/client'</span>;
 
 <span class="kw">const</span> result = <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">'https://techcrunch.com/2026/03/09/ai-news/'</span>, {
   tollway: {
@@ -675,7 +675,7 @@ console.log(result.cost);         <span class="cm">// "0.001" USDC</span></pre>
     </div>
     <div class="code-pane" id="tab-site">
 <pre><span class="cm">// Express middleware — serve tollway.json + validate agents</span>
-<span class="kw">import</span> { <span class="fn">tollwayMiddleware</span> } <span class="kw">from</span> <span class="str">'tollway-server'</span>;
+<span class="kw">import</span> { <span class="fn">tollwayMiddleware</span> } <span class="kw">from</span> <span class="str">'@tollway/server'</span>;
 
 app.<span class="fn">use</span>(<span class="fn">tollwayMiddleware</span>({
   policy: {
@@ -723,17 +723,17 @@ app.<span class="fn">use</span>(<span class="fn">tollwayMiddleware</span>({
   <div class="ecosystem">
     <div class="eco-card">
       <span class="eco-card-tag">npm</span>
-      <p class="eco-card-title">tollway-client</p>
-      <p class="eco-card-body">Drop-in <code>fetch</code> replacement for agent developers. Handles identity headers, 402 payment flows, structured extraction, and attribution automatically.</p>
+      <p class="eco-card-title">@tollway/client</p>
+      <p class="eco-card-body">Drop-in <code>fetch</code> wrapper for agent developers. Attaches identity headers, reads <code>tollway.json</code>, retries Tollway <code>402</code> flows, and extracts basic structured metadata.</p>
       <br>
-      <code>npm i tollway-client</code>
+      <code>npm i @tollway/client</code>
     </div>
     <div class="eco-card">
       <span class="eco-card-tag">npm</span>
-      <p class="eco-card-title">tollway-server</p>
-      <p class="eco-card-body">Express and Next.js middleware for site owners. Auto-generates <code>tollway.json</code>, validates DID signatures, enforces rate limits, and logs agent traffic.</p>
+      <p class="eco-card-title">@tollway/server</p>
+      <p class="eco-card-body">Express and Next.js middleware for site owners. Serves <code>tollway.json</code>, parses agent headers, enforces freshness checks, and returns Tollway <code>402</code> payment requests.</p>
       <br>
-      <code>npm i tollway-server</code>
+      <code>npm i @tollway/server</code>
     </div>
     <div class="eco-card">
       <span class="eco-card-tag">community</span>
