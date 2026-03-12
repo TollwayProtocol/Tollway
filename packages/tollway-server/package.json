@@ -2,7 +2,14 @@
   "name": "@tollway/server",
   "version": "0.1.0",
   "description": "Express/Next.js middleware for the Tollway protocol — policy serving, identity validation, and payment flows",
-  "keywords": ["tollway", "express", "nextjs", "middleware", "ai-agent", "did"],
+  "keywords": [
+    "tollway",
+    "express",
+    "nextjs",
+    "middleware",
+    "ai-agent",
+    "did"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/TollwayProtocol/Tollway.git",
@@ -37,8 +44,12 @@
     "next": ">=13.0.0"
   },
   "peerDependenciesMeta": {
-    "express": { "optional": true },
-    "next": { "optional": true }
+    "express": {
+      "optional": true
+    },
+    "next": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@types/express": "^4.17.21",
@@ -55,5 +66,8 @@
   },
   "publishConfig": {
     "access": "public"
+  },
+  "dependencies": {
+    "bs58": "^6.0.0"
   }
 }
