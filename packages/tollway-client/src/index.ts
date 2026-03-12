@@ -27,6 +27,12 @@ export interface TollwayOptions {
   reputationOracle?: string;
   /** Agent framework identifier e.g. "langchain/0.3.0" */
   framework?: string;
+  /**
+   * Custom payment handler invoked when the server returns HTTP 402.
+   * Should submit an on-chain USDC transfer and return a JSON receipt string,
+   * or null to skip payment. Use @tollway/payments for a ready-made handler.
+   */
+  onPaymentRequired?: (req: PaymentRequest) => Promise<string | null>;
 }
 
 export interface TollwayResult {
@@ -201,8 +207,13 @@ async function handlePayment(
   paymentReq: PaymentRequest,
   options: TollwayOptions,
 ): Promise<string | null> {
+  // Use the caller-supplied payment handler if provided (e.g. from @tollway/payments)
+  if (options.onPaymentRequired) {
+    return options.onPaymentRequired(paymentReq);
+  }
+
   if (!options.wallet) {
-    console.warn('[tollway] Payment required but no wallet configured');
+    console.warn('[tollway] Payment required but no wallet or onPaymentRequired configured');
     return null;
   }
 
@@ -214,16 +225,10 @@ async function handlePayment(
     return null;
   }
 
-  // In a real implementation, this would submit an on-chain USDC transaction
-  // via ethers.js or viem. For now, we return a placeholder.
-  // TODO: Implement real x402 payment flow
+  // No payment handler supplied — log and bail
+  console.warn('[tollway] Payment required. Add onPaymentRequired from @tollway/payments to pay automatically.');
   console.log(`[tollway] Would pay ${price} ${paymentReq.currency} to ${paymentReq.payment_address}`);
-
-  return JSON.stringify({
-    tx_hash: '0x_placeholder_implement_real_x402',
-    network: paymentReq.network,
-    payment_id: paymentReq.payment_id,
-  });
+  return null;
 }
 
 // ─── Attribution ──────────────────────────────────────────────────────────────

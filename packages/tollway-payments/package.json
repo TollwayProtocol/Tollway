@@ -1,0 +1,65 @@
+{
+  "name": "@tollway/payments",
+  "version": "0.1.0",
+  "description": "USDC micropayment handler for the Tollway protocol — sends on-chain payments via viem on Base",
+  "keywords": [
+    "tollway",
+    "usdc",
+    "micropayments",
+    "base",
+    "viem",
+    "x402",
+    "ai-agent"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TollwayProtocol/Tollway.git",
+    "directory": "packages/tollway-payments"
+  },
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "homepage": "https://tollway.dev",
+  "bugs": {
+    "url": "https://github.com/TollwayProtocol/Tollway/issues"
+  },
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/TollwayProtocol"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "lint": "eslint src",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@tollway/client": "^0.1.0",
+    "viem": "^2.21.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.10",
+    "tsup": "^8.2.4",
+    "typescript": "^5.5.4"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
