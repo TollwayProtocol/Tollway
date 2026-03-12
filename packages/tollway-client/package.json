@@ -1,6 +1,6 @@
 {
   "name": "@tollway/client",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Drop-in fetch replacement for AI agents — identity headers, policy enforcement, and payment flows",
   "keywords": [
     "tollway",
@@ -27,9 +27,18 @@
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "homepage": "https://tollway.dev",
+  "bugs": {
+    "url": "https://github.com/TollwayProtocol/Tollway/issues"
+  },
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/TollwayProtocol"
+  },
   "files": [
     "dist",
-    "LICENSE"
+    "LICENSE",
+    "README.md"
   ],
   "scripts": {
     "build": "tsup",
