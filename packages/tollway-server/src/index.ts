@@ -5,8 +5,7 @@
  */
 
 import * as crypto from 'crypto';
-
-// ─── Types ────────────────────────────────────────────────────────────────────
+import bs58 from 'bs58';
 
 export interface ServerPolicy {
   /** Free requests per day before payment required */
@@ -80,30 +79,33 @@ export interface PaymentRecord {
   timestamp: string;
 }
 
-// ─── In-memory stores (replace with Redis/DB in production) ───────────────────
-
-const nonceStore = new Map<string, number>(); // nonce -> timestamp
+const nonceStore = new Map<string, number>();
 const requestCounts = new Map<string, { count: number; resetAt: number }>();
 const pendingPayments = new Map<string, { price: string; currency: string; expiresAt: number }>();
+
+const DID_KEY_PREFIX = 'did:key:';
+const ED25519_MULTICODEC_PREFIX = Buffer.from([0xed, 0x01]);
+const ED25519_SPKI_PREFIX = Buffer.from('302a300506032b6570032100', 'hex');
 
 function isNonceUsed(nonce: string): boolean {
   const ts = nonceStore.get(nonce);
   if (!ts) return false;
-  // Expire nonces after 5 minutes
+
   if (Date.now() - ts > 5 * 60 * 1000) {
     nonceStore.delete(nonce);
     return false;
   }
+
   return true;
 }
 
 function recordNonce(nonce: string): void {
   nonceStore.set(nonce, Date.now());
-  // Cleanup old nonces periodically
+
   if (nonceStore.size > 10000) {
     const cutoff = Date.now() - 5 * 60 * 1000;
-    for (const [k, v] of nonceStore.entries()) {
-      if (v < cutoff) nonceStore.delete(k);
+    for (const [key, value] of nonceStore.entries()) {
+      if (value < cutoff) nonceStore.delete(key);
     }
   }
 }
@@ -111,16 +113,16 @@ function recordNonce(nonce: string): void {
 function checkRateLimit(did: string, limit: number): boolean {
   const now = Date.now();
   const entry = requestCounts.get(did);
+
   if (!entry || entry.resetAt < now) {
     requestCounts.set(did, { count: 1, resetAt: now + 60 * 1000 });
     return true;
   }
+
   if (entry.count >= limit) return false;
   entry.count++;
   return true;
 }
-
-// ─── Build tollway.json ────────────────────────────────────────────────────────
 
 export function buildTollwayJson(options: MiddlewareOptions): Record<string, unknown> {
   const { policy, paymentAddress, paymentNetwork = 'base' } = options;
@@ -178,34 +180,57 @@ export function buildTollwayJson(options: MiddlewareOptions): Record<string, unk
   return json;
 }
 
-// ─── Verify Agent Identity ────────────────────────────────────────────────────
+function createPublicKeyFromDid(did: string): crypto.KeyObject | null {
+  if (!did.startsWith(DID_KEY_PREFIX)) return null;
 
-function verifySignature(identity: AgentIdentity, method: string, url: string): boolean {
+  const multibaseValue = did.slice(DID_KEY_PREFIX.length);
+  if (!multibaseValue.startsWith('z')) return null;
+
+  const decoded = Buffer.from(bs58.decode(multibaseValue.slice(1)));
+  if (decoded.length !== 34 || !decoded.subarray(0, 2).equals(ED25519_MULTICODEC_PREFIX)) {
+    return null;
+  }
+
+  const publicKeyBytes = decoded.subarray(2);
+  return crypto.createPublicKey({
+    key: Buffer.concat([ED25519_SPKI_PREFIX, publicKeyBytes]),
+    format: 'der',
+    type: 'spki',
+  });
+}
+
+function buildCanonicalRequest(
+  identity: AgentIdentity,
+  method: string,
+  url: string,
+): string {
+  return [
+    identity.did,
+    identity.purpose,
+    identity.scope,
+    identity.nonce,
+    identity.timestamp,
+    method.toUpperCase(),
+    url,
+  ].join('\n');
+}
+
+function verifySignature(identity: AgentIdentity, method: string, urls: string[]): boolean {
   if (!identity.signature) return false;
 
   try {
-    const canonical = [
-      identity.did,
-      identity.purpose,
-      identity.scope,
-      identity.nonce,
-      identity.timestamp,
-      method.toUpperCase(),
-      url,
-    ].join('\n');
+    const publicKey = createPublicKeyFromDid(identity.did);
+    if (!publicKey) return false;
 
-    // Extract public key from did:key
-    // did:key:z6Mk... -> base58-decoded Ed25519 public key
-    const didKeyPrefix = 'did:key:z6Mk';
-    if (!identity.did.startsWith(didKeyPrefix)) {
-      // Only did:key is supported in v0.1
-      return false;
-    }
-
-    // TODO: Full multibase/multicodec decoding of did:key
-    // A production implementation uses the `did-resolver` + `key-did-resolver` packages
-    void canonical; // suppress unused variable warning
-    return true; // Placeholder — full DID key resolution coming in v0.2
+    const signature = Buffer.from(identity.signature, 'base64url');
+    return urls.some(url =>
+      crypto.verify(
+        null,
+        Buffer.from(buildCanonicalRequest(identity, method, url), 'utf8'),
+        publicKey,
+        signature,
+      ),
+    );
   } catch {
     return false;
   }
@@ -215,8 +240,8 @@ export function parseAgentIdentity(
   headers: Record<string, string | string[] | undefined>,
 ): AgentIdentity | null {
   const get = (key: string) => {
-    const val = headers[key.toLowerCase()];
-    return Array.isArray(val) ? val[0] : val;
+    const value = headers[key.toLowerCase()];
+    return Array.isArray(value) ? value[0] : value;
   };
 
   const did = get('x-tollway-did');
@@ -242,15 +267,40 @@ export function parseAgentIdentity(
   };
 }
 
-// ─── Get price for scope ──────────────────────────────────────────────────────
-
 function getPriceForScope(scope: string, policy: ServerPolicy): string | null {
   if (!policy.pricing) return null;
-  const entry = policy.pricing.find(p => p.action === scope);
+  const entry = policy.pricing.find(item => item.action === scope);
   return entry?.price ?? null;
 }
 
-// ─── Express Middleware ────────────────────────────────────────────────────────
+function buildVerificationUrls(req: {
+  url?: string;
+  originalUrl?: string;
+  protocol?: string;
+  headers: Record<string, string | string[] | undefined>;
+}): string[] {
+  const urls = new Set<string>();
+
+  if (typeof req.originalUrl === 'string') urls.add(req.originalUrl);
+  if (typeof req.url === 'string') urls.add(req.url);
+
+  const forwardedProto = req.headers['x-forwarded-proto'];
+  const protocol = typeof req.protocol === 'string'
+    ? req.protocol
+    : Array.isArray(forwardedProto)
+      ? forwardedProto[0]
+      : forwardedProto ?? 'https';
+  const hostHeader = req.headers.host;
+  const host = Array.isArray(hostHeader) ? hostHeader[0] : hostHeader;
+
+  if (host) {
+    for (const path of Array.from(urls)) {
+      urls.add(`${protocol}://${host}${path}`);
+    }
+  }
+
+  return Array.from(urls);
+}
 
 export function tollwayMiddleware(options: MiddlewareOptions) {
   const { policy, paymentAddress, enableLogging = true } = options;
@@ -258,18 +308,13 @@ export function tollwayMiddleware(options: MiddlewareOptions) {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return function tollwayHandler(req: any, res: any, next: any) {
-    // Serve tollway.json
     if (req.path === '/.well-known/tollway.json') {
       return res.json(tollwayJson);
     }
 
-    // Parse agent identity from headers
     const identity = parseAgentIdentity(req.headers as Record<string, string | undefined>);
-
-    // If no Tollway headers present, pass through (non-agent traffic)
     if (!identity) return next();
 
-    // Validate timestamp freshness (5 minute window)
     const reqTime = new Date(identity.timestamp).getTime();
     if (isNaN(reqTime) || Math.abs(Date.now() - reqTime) > 5 * 60 * 1000) {
       return res.status(400).json({
@@ -278,7 +323,6 @@ export function tollwayMiddleware(options: MiddlewareOptions) {
       });
     }
 
-    // Check nonce for replay attacks
     if (isNonceUsed(identity.nonce)) {
       return res.status(400).json({
         error: 'tollway_replay_attack',
@@ -287,7 +331,6 @@ export function tollwayMiddleware(options: MiddlewareOptions) {
     }
     recordNonce(identity.nonce);
 
-    // Check if DID is required
     if (policy.requireDid && !identity.did.startsWith('did:')) {
       return res.status(403).json({
         error: 'tollway_did_required',
@@ -295,7 +338,6 @@ export function tollwayMiddleware(options: MiddlewareOptions) {
       });
     }
 
-    // Check if action is prohibited
     if (policy.prohibitedActions?.includes(identity.scope)) {
       return res.status(403).json({
         error: 'tollway_action_prohibited',
@@ -303,20 +345,24 @@ export function tollwayMiddleware(options: MiddlewareOptions) {
       });
     }
 
-    // Check rate limits
-    if (policy.requestsPerMinute) {
-      if (!checkRateLimit(identity.did, policy.requestsPerMinute)) {
-        return res.status(429).json({
-          error: 'tollway_rate_limit',
-          message: 'Rate limit exceeded',
-        });
-      }
+    if (policy.requestsPerMinute && !checkRateLimit(identity.did, policy.requestsPerMinute)) {
+      return res.status(429).json({
+        error: 'tollway_rate_limit',
+        message: 'Rate limit exceeded',
+      });
     }
 
-    // Verify signature
-    identity.verified = verifySignature(identity, req.method as string, req.url as string);
+    identity.verified = verifySignature(
+      identity,
+      req.method as string,
+      buildVerificationUrls(req as {
+        url?: string;
+        originalUrl?: string;
+        protocol?: string;
+        headers: Record<string, string | string[] | undefined>;
+      }),
+    );
 
-    // Check if payment is required
     const paymentProof = req.headers['x-tollway-payment'];
     const requiresPayment = policy.paymentRequiredActions?.includes(identity.scope);
 
@@ -345,7 +391,6 @@ export function tollwayMiddleware(options: MiddlewareOptions) {
       }
     }
 
-    // Log agent request
     if (enableLogging) {
       const logEntry = {
         timestamp: new Date().toISOString(),
@@ -361,10 +406,7 @@ export function tollwayMiddleware(options: MiddlewareOptions) {
       console.log('[tollway]', JSON.stringify(logEntry));
     }
 
-    // Attach identity to request for downstream handlers
     req.tollwayIdentity = identity;
-
-    // Add Tollway response headers
     res.setHeader('X-Tollway-Served', '1');
     res.setHeader('X-Tollway-Version', '0.1');
 
@@ -376,32 +418,28 @@ export function tollwayMiddleware(options: MiddlewareOptions) {
   };
 }
 
-// ─── Next.js Middleware ────────────────────────────────────────────────────────
-
 export function createNextjsMiddleware(options: MiddlewareOptions) {
   const tollwayJson = buildTollwayJson(options);
 
   return async function middleware(request: Request): Promise<Response | null> {
     const url = new URL(request.url);
 
-    // Serve tollway.json
     if (url.pathname === '/.well-known/tollway.json') {
       return new Response(JSON.stringify(tollwayJson, null, 2), {
         headers: { 'Content-Type': 'application/json' },
       });
     }
 
-    // For non-tollway requests, return null to continue
-    const hasTollwayHeaders = request.headers.has('x-tollway-did');
-    if (!hasTollwayHeaders) return null;
+    if (!request.headers.has('x-tollway-did')) return null;
 
-    // Parse and validate identity
     const headers: Record<string, string> = {};
-    request.headers.forEach((v, k) => { headers[k] = v; });
+    request.headers.forEach((value, key) => {
+      headers[key] = value;
+    });
+
     const identity = parseAgentIdentity(headers);
     if (!identity) return null;
 
-    // Check prohibited actions
     if (options.policy.prohibitedActions?.includes(identity.scope)) {
       return new Response(
         JSON.stringify({
@@ -412,12 +450,9 @@ export function createNextjsMiddleware(options: MiddlewareOptions) {
       );
     }
 
-    // Pass through with identity available for downstream
     return null;
   };
 }
-
-// ─── Standalone tollway.json generator ────────────────────────────────────────
 
 export function generateTollwayJson(policy: ServerPolicy, paymentAddress?: string): string {
   return JSON.stringify(buildTollwayJson({ policy, paymentAddress }), null, 2);
