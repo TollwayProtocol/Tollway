@@ -1,0 +1,28 @@
+site: finance.yahoo.com
+version: "1"
+updated: "2026-03-09"
+maintainer: tollway-community
+
+output:
+  ticker: string
+  company_name: string
+  price: number
+  change: number
+  change_percent: number
+  market_cap: string
+  pe_ratio: string
+  summary: string
+
+selectors:
+  company_name: "h1.yf-xxbei9"
+  price: "[data-field='regularMarketPrice']"
+  change: "[data-field='regularMarketChange']"
+  change_percent: "[data-field='regularMarketChangePercent']"
+  market_cap: '[data-field="marketCap"]'
+  pe_ratio: '[data-field="trailingPE"]'
+  summary: ".yf-1o4iddl p"
+
+test_urls:
+  - https://finance.yahoo.com/quote/AAPL/
+  - https://finance.yahoo.com/quote/NVDA/
+  - https://finance.yahoo.com/quote/MSFT/
