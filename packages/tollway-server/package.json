@@ -1,0 +1,59 @@
+{
+  "name": "@tollway/server",
+  "version": "0.1.0",
+  "description": "Express/Next.js middleware for the Tollway protocol — policy serving, identity validation, and payment flows",
+  "keywords": ["tollway", "express", "nextjs", "middleware", "ai-agent", "did"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TollwayProtocol/Tollway.git",
+    "directory": "packages/tollway-server"
+  },
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "jest",
+    "test:coverage": "jest --coverage",
+    "lint": "eslint src",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "peerDependencies": {
+    "express": ">=4.0.0",
+    "next": ">=13.0.0"
+  },
+  "peerDependenciesMeta": {
+    "express": { "optional": true },
+    "next": { "optional": true }
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/jest": "^29.5.14",
+    "@types/node": "^20.14.10",
+    "express": "^4.19.2",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.3",
+    "tsup": "^8.2.4",
+    "typescript": "^5.5.4"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

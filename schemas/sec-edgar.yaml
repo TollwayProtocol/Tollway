@@ -1,0 +1,28 @@
+site: www.sec.gov
+version: "1"
+updated: "2026-03-09"
+maintainer: tollway-community
+
+output:
+  company_name: string
+  cik: string
+  filing_type: string
+  filed_date: date
+  description: string
+  documents: array
+
+selectors:
+  # Company search results
+  company_name: ".companyName"
+  cik: ".CIK"
+
+  # Filing index page
+  filing_type: ".formType"
+  filed_date: ".dateOfFiling"
+  description: ".description"
+  document_links: ".tableFile td a"
+
+test_urls:
+  - https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=AAPL&type=10-K
+  - https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=MSFT&type=10-K
+  - https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=GOOGL&type=10-K

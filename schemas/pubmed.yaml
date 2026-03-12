@@ -1,0 +1,29 @@
+site: pubmed.ncbi.nlm.nih.gov
+version: "1"
+updated: "2026-03-09"
+maintainer: tollway-community
+
+output:
+  title: string
+  authors: array
+  abstract: string
+  journal: string
+  published_at: date
+  pmid: string
+  doi: string
+  keywords: array
+
+selectors:
+  title: "h1.heading-title"
+  authors: ".authors-list .authors-list-item .full-name"
+  abstract: "#abstract .abstract-content p"
+  journal: ".journal-actions .journal-title"
+  published_at: ".article-source time"
+  pmid: ".article-details .pmid"
+  doi: ".article-details .doi"
+  keywords: ".keywords-list p"
+
+test_urls:
+  - https://pubmed.ncbi.nlm.nih.gov/33517193/
+  - https://pubmed.ncbi.nlm.nih.gov/34986264/
+  - https://pubmed.ncbi.nlm.nih.gov/35121932/

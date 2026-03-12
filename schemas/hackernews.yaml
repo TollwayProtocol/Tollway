@@ -1,0 +1,32 @@
+site: news.ycombinator.com
+version: "1"
+updated: "2026-03-09"
+maintainer: tollway-community
+
+output:
+  title: string
+  url: string
+  points: integer
+  author: string
+  comment_count: integer
+  comments: array
+
+selectors:
+  # Main listing page
+  listing_items: "tr.athing"
+  title: "tr.athing .titleline a"
+  url: "tr.athing .titleline a"
+  points: ".score"
+  author: ".hnuser"
+  comment_count: 'a[href*="item?id"]'
+
+  # Item/comments page
+  story_title: ".storylink, .titleline a"
+  story_url: ".titleline a"
+  comment_text: ".comment .commtext"
+  comment_author: ".comhead .hnuser"
+
+test_urls:
+  - https://news.ycombinator.com/
+  - https://news.ycombinator.com/item?id=39354290
+  - https://news.ycombinator.com/item?id=39337908

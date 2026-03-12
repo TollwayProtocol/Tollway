@@ -1,0 +1,31 @@
+site: stackoverflow.com
+version: "1"
+updated: "2026-03-09"
+maintainer: tollway-community
+path_pattern: "/questions/{id}/{slug}"
+
+output:
+  title: string
+  question_body: string
+  asked_by: string
+  asked_at: datetime
+  votes: integer
+  answers: array
+  tags: array
+  accepted_answer: string
+
+selectors:
+  title: "h1.fs-headline1"
+  question_body: ".question .s-prose"
+  asked_by: ".question .user-details a"
+  asked_at: ".question time[datetime]"
+  votes: ".question .js-vote-count"
+  tags: ".post-taglist a.post-tag"
+  accepted_answer: ".answer.accepted-answer .s-prose"
+  all_answers: ".answer .s-prose"
+  answer_votes: ".answer .js-vote-count"
+
+test_urls:
+  - https://stackoverflow.com/questions/11227809/why-is-processing-a-sorted-array-faster
+  - https://stackoverflow.com/questions/927358/how-do-i-undo-the-most-recent-local-commits-in-git
+  - https://stackoverflow.com/questions/231767/what-does-the-yield-keyword-do-in-python

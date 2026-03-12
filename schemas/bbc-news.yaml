@@ -1,0 +1,27 @@
+site: bbc.com
+version: "1"
+updated: "2026-03-09"
+maintainer: tollway-community
+
+output:
+  title: string
+  summary: string
+  author: string
+  published_at: datetime
+  content: string
+  section: string
+  image_url: string
+
+selectors:
+  title: "h1[id='main-heading']"
+  summary: "[data-component='text-block'] p:first-child"
+  author: "[data-component='byline-block'] .ssrcss-1pjc44v-Contributor"
+  published_at: "time[datetime]"
+  content: "[data-component='text-block'] p"
+  section: ".ssrcss-1r1v3y5-StyledLink"
+  image_url: "[data-component='image-block'] img"
+
+test_urls:
+  - https://www.bbc.com/news/technology-67890123
+  - https://www.bbc.com/news/science-environment-12345678
+  - https://www.bbc.com/news/world-us-canada-99999999
