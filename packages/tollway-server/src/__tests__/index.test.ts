@@ -2,6 +2,8 @@
  * Tests for @tollway/server
  */
 
+import * as crypto from 'crypto';
+import bs58 from 'bs58';
 import {
   buildTollwayJson,
   tollwayMiddleware,
@@ -71,6 +73,56 @@ function agentHeaders(overrides: Record<string, string> = {}): Record<string, st
     'x-tollway-timestamp': new Date().toISOString(),
     ...overrides,
   };
+}
+
+function makePrivateKey(seedHex: string): crypto.KeyObject {
+  return crypto.createPrivateKey({
+    key: Buffer.concat([
+      Buffer.from('302e020100300506032b657004220420', 'hex'),
+      Buffer.from(seedHex, 'hex'),
+    ]),
+    format: 'der',
+    type: 'pkcs8',
+  });
+}
+
+function makeDidFromPrivateKey(privateKey: crypto.KeyObject): string {
+  const spki = crypto.createPublicKey(privateKey).export({
+    format: 'der',
+    type: 'spki',
+  }) as Buffer;
+  const publicKey = spki.subarray(-32);
+  const multicodec = Buffer.concat([Buffer.from([0xed, 0x01]), publicKey]);
+  return `did:key:z${bs58.encode(multicodec)}`;
+}
+
+function makeSignedAgentHeaders(
+  overrides: Record<string, string> = {},
+  requestUrl = 'https://example.com/page',
+  method = 'GET',
+): Record<string, string> {
+  const privateKey = makePrivateKey('1'.repeat(64));
+  const did = makeDidFromPrivateKey(privateKey);
+  const headers = agentHeaders({
+    'x-tollway-did': did,
+    ...overrides,
+  });
+
+  const canonical = [
+    headers['x-tollway-did'],
+    headers['x-tollway-purpose'],
+    headers['x-tollway-scope'],
+    headers['x-tollway-nonce'],
+    headers['x-tollway-timestamp'],
+    method,
+    requestUrl,
+  ].join('\n');
+
+  headers['x-tollway-signature'] = crypto
+    .sign(null, Buffer.from(canonical, 'utf8'), privateKey)
+    .toString('base64url');
+
+  return headers;
 }
 
 // ─── buildTollwayJson ─────────────────────────────────────────────────────────
@@ -383,6 +435,45 @@ describe('tollwayMiddleware', () => {
     middleware(req, makeRes(), next);
 
     expect(next).toHaveBeenCalled();
+  });
+
+  test('marks a valid did:key Ed25519 signature as verified', () => {
+    const middleware = tollwayMiddleware(BASE_OPTIONS);
+    const req = makeReq({
+      protocol: 'https',
+      originalUrl: '/page',
+      headers: {
+        ...makeSignedAgentHeaders(),
+        host: 'example.com',
+      },
+    }) as Record<string, unknown>;
+    const next = makeNext();
+
+    middleware(req, makeRes(), next);
+
+    expect(next).toHaveBeenCalled();
+    const identity = req['tollwayIdentity'] as AgentIdentity;
+    expect(identity.verified).toBe(true);
+  });
+
+  test('marks an invalid signature as unverified', () => {
+    const middleware = tollwayMiddleware(BASE_OPTIONS);
+    const req = makeReq({
+      protocol: 'https',
+      originalUrl: '/page',
+      headers: {
+        ...makeSignedAgentHeaders(),
+        host: 'example.com',
+        'x-tollway-signature': Buffer.from('tampered').toString('base64url'),
+      },
+    }) as Record<string, unknown>;
+    const next = makeNext();
+
+    middleware(req, makeRes(), next);
+
+    expect(next).toHaveBeenCalled();
+    const identity = req['tollwayIdentity'] as AgentIdentity;
+    expect(identity.verified).toBe(false);
   });
 
   test('attaches tollwayIdentity to the request and calls next() for valid requests', () => {
