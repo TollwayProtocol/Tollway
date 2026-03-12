@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tollway — Open protocol for AI agent web access</title>
+  <meta name="description" content="The open standard for how AI agents identify themselves, request permission, and compensate publishers when accessing the web.">
+  <meta property="og:title" content="Tollway">
+  <meta property="og:description" content="Open protocol for AI agent web access. robots.txt for the agentic era.">
+  <meta property="og:url" content="https://tollway.dev">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --black: #0a0a0a;
+      --white: #f5f0e8;
+      --amber: #e8a020;
+      --amber-dim: #a06010;
+      --gray: #2a2a2a;
+      --gray-mid: #444;
+      --gray-light: #888;
+      --code-bg: #141414;
+      --font-display: 'Syne', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--black);
+      color: var(--white);
+      font-family: var(--font-display);
+      overflow-x: hidden;
+    }
+
+    /* ─── Noise texture overlay ─────────────────────── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 1000;
+      opacity: 0.4;
+    }
+
+    /* ─── Road stripe animation ─────────────────────── */
+    .road-stripe {
+      position: fixed;
+      top: 0;
+      right: 80px;
+      width: 2px;
+      height: 100vh;
+      background: repeating-linear-gradient(
+        to bottom,
+        var(--amber) 0px,
+        var(--amber) 40px,
+        transparent 40px,
+        transparent 80px
+      );
+      opacity: 0.15;
+      animation: stripe-scroll 3s linear infinite;
+    }
+
+    @keyframes stripe-scroll {
+      from { background-position: 0 0; }
+      to { background-position: 0 80px; }
+    }
+
+    /* ─── Nav ─────────────────────────────────────────── */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 48px;
+      background: linear-gradient(to bottom, rgba(10,10,10,0.95), transparent);
+    }
+
+    .nav-logo {
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 1.1rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--white);
+      text-decoration: none;
+    }
+
+    .nav-logo span { color: var(--amber); }
+
+    .nav-links {
+      display: flex;
+      gap: 32px;
+      list-style: none;
+    }
+
+    .nav-links a {
+      color: var(--gray-light);
+      text-decoration: none;
+      font-size: 0.8rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover { color: var(--white); }
+
+    /* ─── Hero ────────────────────────────────────────── */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 120px 48px 80px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-road {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 200px;
+      background: linear-gradient(to top, rgba(232,160,32,0.04), transparent);
+      pointer-events: none;
+    }
+
+    .hero-grid {
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(232,160,32,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(232,160,32,0.03) 1px, transparent 1px);
+      background-size: 80px 80px;
+      pointer-events: none;
+    }
+
+    .hero-eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--amber);
+      margin-bottom: 28px;
+      opacity: 0;
+      animation: fade-up 0.8s ease forwards 0.2s;
+    }
+
+    .hero-title {
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: clamp(3.5rem, 8vw, 7rem);
+      line-height: 0.95;
+      letter-spacing: -0.03em;
+      max-width: 900px;
+      opacity: 0;
+      animation: fade-up 0.8s ease forwards 0.4s;
+    }
+
+    .hero-title em {
+      font-style: normal;
+      color: var(--amber);
+    }
+
+    .hero-sub {
+      margin-top: 36px;
+      font-size: 1.1rem;
+      color: var(--gray-light);
+      max-width: 560px;
+      line-height: 1.65;
+      font-weight: 400;
+      opacity: 0;
+      animation: fade-up 0.8s ease forwards 0.6s;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 16px;
+      margin-top: 48px;
+      opacity: 0;
+      animation: fade-up 0.8s ease forwards 0.8s;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 28px;
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      letter-spacing: 0.1em;
+      text-decoration: none;
+      border-radius: 2px;
+      transition: all 0.2s;
+      cursor: pointer;
+    }
+
+    .btn-primary {
+      background: var(--amber);
+      color: var(--black);
+      font-weight: 500;
+    }
+    .btn-primary:hover { background: #f0b030; transform: translateY(-1px); }
+
+    .btn-ghost {
+      border: 1px solid var(--gray-mid);
+      color: var(--white);
+    }
+    .btn-ghost:hover { border-color: var(--amber); color: var(--amber); }
+
+    .hero-stats {
+      display: flex;
+      gap: 48px;
+      margin-top: 72px;
+      padding-top: 48px;
+      border-top: 1px solid var(--gray);
+      opacity: 0;
+      animation: fade-up 0.8s ease forwards 1.0s;
+    }
+
+    .stat { display: flex; flex-direction: column; gap: 4px; }
+    .stat-num {
+      font-family: var(--font-mono);
+      font-size: 1.6rem;
+      font-weight: 500;
+      color: var(--amber);
+    }
+    .stat-label {
+      font-size: 0.7rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--gray-light);
+    }
+
+    @keyframes fade-up {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ─── Problem ─────────────────────────────────────── */
+    .section {
+      padding: 100px 48px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .section-label {
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--amber);
+      margin-bottom: 20px;
+    }
+
+    .section-title {
+      font-size: clamp(1.8rem, 4vw, 3rem);
+      font-weight: 800;
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+      margin-bottom: 24px;
+    }
+
+    .section-body {
+      color: var(--gray-light);
+      font-size: 1rem;
+      line-height: 1.75;
+      max-width: 640px;
+    }
+
+    /* ─── How it works ────────────────────────────────── */
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 2px;
+      margin-top: 64px;
+    }
+
+    .step {
+      background: var(--gray);
+      padding: 40px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .step::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: var(--amber);
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.4s ease;
+    }
+
+    .step:hover::before { transform: scaleX(1); }
+
+    .step-num {
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      letter-spacing: 0.2em;
+      color: var(--amber);
+      margin-bottom: 20px;
+    }
+
+    .step-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+
+    .step-body {
+      font-size: 0.85rem;
+      color: var(--gray-light);
+      line-height: 1.65;
+    }
+
+    /* ─── Code block ──────────────────────────────────── */
+    .code-demo {
+      background: var(--code-bg);
+      border: 1px solid var(--gray);
+      border-radius: 4px;
+      margin-top: 64px;
+      overflow: hidden;
+    }
+
+    .code-tabs {
+      display: flex;
+      background: var(--gray);
+      border-bottom: 1px solid #333;
+    }
+
+    .code-tab {
+      padding: 12px 20px;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      letter-spacing: 0.08em;
+      color: var(--gray-light);
+      cursor: pointer;
+      transition: all 0.15s;
+      border: none;
+      background: none;
+    }
+
+    .code-tab.active {
+      color: var(--amber);
+      background: var(--code-bg);
+    }
+
+    .code-pane {
+      display: none;
+      padding: 32px;
+      overflow-x: auto;
+    }
+
+    .code-pane.active { display: block; }
+
+    pre {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      line-height: 1.7;
+      color: #ccc;
+    }
+
+    .kw { color: #e8a020; }
+    .fn { color: #7dd3fc; }
+    .str { color: #86efac; }
+    .cm { color: #555; }
+    .hl { background: rgba(232,160,32,0.08); display: block; margin: 0 -32px; padding: 0 32px; }
+
+    /* ─── Ecosystem ───────────────────────────────────── */
+    .ecosystem {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 2px;
+      margin-top: 48px;
+    }
+
+    .eco-card {
+      background: var(--gray);
+      padding: 32px;
+    }
+
+    .eco-card-tag {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 0.62rem;
+      letter-spacing: 0.15em;
+      padding: 4px 8px;
+      background: rgba(232,160,32,0.12);
+      color: var(--amber);
+      border-radius: 2px;
+      margin-bottom: 16px;
+    }
+
+    .eco-card-title {
+      font-family: var(--font-mono);
+      font-size: 0.9rem;
+      margin-bottom: 12px;
+      color: var(--white);
+    }
+
+    .eco-card-body {
+      font-size: 0.82rem;
+      color: var(--gray-light);
+      line-height: 1.6;
+    }
+
+    .eco-card code {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--amber);
+      background: rgba(232,160,32,0.08);
+      padding: 2px 6px;
+      border-radius: 2px;
+    }
+
+    /* ─── Comparison table ────────────────────────────── */
+    .comparison {
+      margin-top: 64px;
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+
+    th {
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--gray-light);
+      padding: 16px 20px;
+      text-align: left;
+      border-bottom: 1px solid var(--gray);
+    }
+
+    td {
+      padding: 16px 20px;
+      border-bottom: 1px solid #1a1a1a;
+      color: var(--gray-light);
+    }
+
+    tr td:first-child { color: var(--white); font-weight: 600; }
+
+    .check { color: #4ade80; }
+    .cross { color: #f87171; }
+    .partial { color: var(--amber); }
+
+    /* ─── CTA ─────────────────────────────────────────── */
+    .cta-section {
+      background: var(--gray);
+      margin: 0;
+      padding: 100px 48px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cta-section::before {
+      content: 'TOLLWAY';
+      position: absolute;
+      font-size: 20vw;
+      font-weight: 800;
+      color: rgba(232,160,32,0.04);
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      white-space: nowrap;
+      pointer-events: none;
+    }
+
+    .cta-title {
+      font-size: clamp(2rem, 5vw, 4rem);
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 20px;
+      position: relative;
+    }
+
+    .cta-body {
+      color: var(--gray-light);
+      font-size: 1rem;
+      margin-bottom: 40px;
+      position: relative;
+    }
+
+    .cta-actions {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      position: relative;
+    }
+
+    /* ─── Footer ──────────────────────────────────────── */
+    footer {
+      padding: 40px 48px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-top: 1px solid var(--gray);
+    }
+
+    .footer-logo {
+      font-family: var(--font-display);
+      font-weight: 800;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      font-size: 0.85rem;
+    }
+
+    .footer-logo span { color: var(--amber); }
+
+    .footer-links {
+      display: flex;
+      gap: 24px;
+      list-style: none;
+    }
+
+    .footer-links a {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--gray-light);
+      text-decoration: none;
+      letter-spacing: 0.1em;
+      transition: color 0.2s;
+    }
+
+    .footer-links a:hover { color: var(--amber); }
+
+    .footer-copy {
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      color: var(--gray-mid);
+    }
+
+    /* ─── Responsive ──────────────────────────────────── */
+    @media (max-width: 768px) {
+      nav { padding: 16px 24px; }
+      .nav-links { display: none; }
+      .hero { padding: 100px 24px 60px; }
+      .hero-stats { flex-wrap: wrap; gap: 32px; }
+      .section { padding: 60px 24px; }
+      .steps, .ecosystem { grid-template-columns: 1fr; }
+      footer { flex-direction: column; gap: 20px; text-align: center; }
+      .road-stripe { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="road-stripe"></div>
+
+<nav>
+  <a href="/" class="nav-logo">Toll<span>way</span></a>
+  <ul class="nav-links">
+    <li><a href="#how">How It Works</a></li>
+    <li><a href="#packages">Packages</a></li>
+    <li><a href="#spec">Spec</a></li>
+    <li><a href="https://github.com/tollway-protocol/tollway">GitHub</a></li>
+    <li><a href="https://discord.gg/tollway">Discord</a></li>
+  </ul>
+</nav>
+
+<!-- ─── Hero ─────────────────────────────────────────── -->
+<section class="hero">
+  <div class="hero-grid"></div>
+
+  <p class="hero-eyebrow">Open Protocol · v0.1</p>
+  <h1 class="hero-title">
+    The web,<br>
+    open to <em>agents.</em>
+  </h1>
+  <p class="hero-sub">
+    Tollway is an open standard for how AI agents identify themselves, request permission, and compensate publishers when accessing web content.
+    <br><br>
+    Think <code style="font-family:var(--font-mono);font-size:0.85em;color:var(--amber)">robots.txt</code> — rebuilt for the agentic era.
+  </p>
+
+  <div class="hero-actions">
+    <a href="https://github.com/tollway-protocol/tollway" class="btn btn-primary">
+      View on GitHub →
+    </a>
+    <a href="#spec" class="btn btn-ghost">
+      Read the Spec
+    </a>
+  </div>
+
+  <div class="hero-stats">
+    <div class="stat">
+      <span class="stat-num">300%</span>
+      <span class="stat-label">increase in AI crawler traffic in 2025</span>
+    </div>
+    <div class="stat">
+      <span class="stat-num">80%+</span>
+      <span class="stat-label">of Cloudflare customers now block AI bots</span>
+    </div>
+    <div class="stat">
+      <span class="stat-num">73,000:1</span>
+      <span class="stat-label">Anthropic's scrape-to-referral ratio</span>
+    </div>
+    <div class="stat">
+      <span class="stat-num">0</span>
+      <span class="stat-label">open standards for agent web access (until now)</span>
+    </div>
+  </div>
+  <div class="hero-road"></div>
+</section>
+
+<!-- ─── How It Works ─────────────────────────────────── -->
+<section class="section" id="how">
+  <p class="section-label">Protocol Overview</p>
+  <h2 class="section-title">Three layers.<br>One cooperative web.</h2>
+  <p class="section-body">
+    Tollway gives both sides what they need. Publishers get identity verification, policy control, and revenue. Agents get reliable access, structured data, and a reputational track record.
+  </p>
+
+  <div class="steps">
+    <div class="step">
+      <p class="step-num">01 — POLICY</p>
+      <h3 class="step-title">tollway.json</h3>
+      <p class="step-body">
+        Sites publish a machine-readable policy file at <code style="font-family:var(--font-mono);font-size:0.8em;color:var(--amber)">/.well-known/tollway.json</code>. Declare what's allowed, what costs money, and whether training is permitted. Adopt in 5 minutes.
+      </p>
+    </div>
+    <div class="step">
+      <p class="step-num">02 — IDENTITY</p>
+      <h3 class="step-title">Agent Headers</h3>
+      <p class="step-body">
+        Every compliant agent attaches a DID (decentralized identifier), stated purpose, action scope, and an Ed25519 cryptographic signature to every request. Sites can verify who's knocking and why.
+      </p>
+    </div>
+    <div class="step">
+      <p class="step-num">03 — ECONOMICS</p>
+      <h3 class="step-title">HTTP 402 + x402</h3>
+      <p class="step-body">
+        When the free tier runs out, sites return a price. Agents pay in USDC on Base, retry with proof. Optimistic serving keeps latency low. On-chain verification runs asynchronously.
+      </p>
+    </div>
+  </div>
+
+  <!-- Code demo -->
+  <div class="code-demo" id="spec">
+    <div class="code-tabs">
+      <button class="code-tab active" onclick="showTab('agent')">Agent Code</button>
+      <button class="code-tab" onclick="showTab('site')">Site Config</button>
+      <button class="code-tab" onclick="showTab('json')">tollway.json</button>
+    </div>
+    <div class="code-pane active" id="tab-agent">
+<pre><span class="cm">// Drop-in fetch replacement — handles everything automatically</span>
+<span class="kw">import</span> { <span class="fn">fetch</span> } <span class="kw">from</span> <span class="str">'tollway-client'</span>;
+
+<span class="kw">const</span> result = <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">'https://techcrunch.com/2026/03/09/ai-news/'</span>, {
+  tollway: {
+    did: process.env.<span class="fn">AGENT_DID</span>,
+    privateKey: process.env.<span class="fn">AGENT_PRIVATE_KEY</span>,
+    wallet: process.env.<span class="fn">AGENT_WALLET</span>,
+    purpose: <span class="str">'competitive-research'</span>,
+    scope: <span class="str">'read'</span>,
+  }
+});
+
+<span class="hl">console.log(result.data);         <span class="cm">// Structured JSON extraction</span></span>
+console.log(result.attribution);  <span class="cm">// "TechCrunch (https://...)"</span>
+console.log(result.paid);         <span class="cm">// true/false</span>
+console.log(result.cost);         <span class="cm">// "0.001" USDC</span></pre>
+    </div>
+    <div class="code-pane" id="tab-site">
+<pre><span class="cm">// Express middleware — serve tollway.json + validate agents</span>
+<span class="kw">import</span> { <span class="fn">tollwayMiddleware</span> } <span class="kw">from</span> <span class="str">'tollway-server'</span>;
+
+app.<span class="fn">use</span>(<span class="fn">tollwayMiddleware</span>({
+  policy: {
+    freeRequestsPerDay: <span class="fn">100</span>,
+    pricing: [
+<span class="hl">      { action: <span class="str">'read'</span>,      price: <span class="str">'0.001'</span> },</span>
+      { action: <span class="str">'summarize'</span>, price: <span class="str">'0.005'</span> },
+      { action: <span class="str">'train'</span>,     price: <span class="str">'0.05'</span>  },
+    ],
+    trainingAllowed: <span class="fn">false</span>,
+    attributionRequired: <span class="fn">true</span>,
+  },
+  paymentAddress: process.env.<span class="fn">WALLET_ADDRESS</span>,
+}));</pre>
+    </div>
+    <div class="code-pane" id="tab-json">
+<pre><span class="cm">// /.well-known/tollway.json</span>
+{
+  <span class="str">"version"</span>: <span class="str">"0.1"</span>,
+  <span class="str">"identity"</span>: {
+    <span class="str">"require_did"</span>: <span class="kw">true</span>,
+    <span class="str">"minimum_reputation"</span>: <span class="fn">0.5</span>
+  },
+  <span class="str">"pricing"</span>: {
+    <span class="str">"currency"</span>: <span class="str">"USDC"</span>,
+<span class="hl">    <span class="str">"free_requests_per_day"</span>: <span class="fn">100</span>,</span>
+    <span class="str">"schedule"</span>: [
+      { <span class="str">"action"</span>: <span class="str">"read"</span>, <span class="str">"price"</span>: <span class="str">"0.001"</span> }
+    ]
+  },
+  <span class="str">"data_policy"</span>: {
+    <span class="str">"training_allowed"</span>: <span class="kw">false</span>,
+    <span class="str">"attribution_required"</span>: <span class="kw">true</span>
+  }
+}</pre>
+    </div>
+  </div>
+</section>
+
+<!-- ─── Packages ──────────────────────────────────────── -->
+<section class="section" id="packages">
+  <p class="section-label">Open Source Packages</p>
+  <h2 class="section-title">Everything you need<br>to ship today.</h2>
+
+  <div class="ecosystem">
+    <div class="eco-card">
+      <span class="eco-card-tag">npm</span>
+      <p class="eco-card-title">tollway-client</p>
+      <p class="eco-card-body">Drop-in <code>fetch</code> replacement for agent developers. Handles identity headers, 402 payment flows, structured extraction, and attribution automatically.</p>
+      <br>
+      <code>npm i tollway-client</code>
+    </div>
+    <div class="eco-card">
+      <span class="eco-card-tag">npm</span>
+      <p class="eco-card-title">tollway-server</p>
+      <p class="eco-card-body">Express and Next.js middleware for site owners. Auto-generates <code>tollway.json</code>, validates DID signatures, enforces rate limits, and logs agent traffic.</p>
+      <br>
+      <code>npm i tollway-server</code>
+    </div>
+    <div class="eco-card">
+      <span class="eco-card-tag">community</span>
+      <p class="eco-card-title">Schema Library</p>
+      <p class="eco-card-body">CSS selector schemas for 10+ popular sites. Enables structured JSON extraction without LLM calls. Community-maintained on GitHub. PRs welcome.</p>
+      <br>
+      <code>github.com/tollway-protocol/tollway/schemas</code>
+    </div>
+  </div>
+</section>
+
+<!-- ─── Comparison ────────────────────────────────────── -->
+<section class="section">
+  <p class="section-label">Landscape</p>
+  <h2 class="section-title">Not competing.<br>Completing the picture.</h2>
+  <p class="section-body">
+    Every existing protocol solves a different problem. Tollway fills the gap none of them address: how agents access arbitrary open web content.
+  </p>
+
+  <div class="comparison">
+    <table>
+      <thead>
+        <tr>
+          <th>Standard</th>
+          <th>Agent ↔ Tools</th>
+          <th>Agent ↔ Agent</th>
+          <th>Agent ↔ Open Web</th>
+          <th>Identity</th>
+          <th>Economics</th>
+          <th>Open Standard</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>MCP (Anthropic)</td>
+          <td class="check">✓</td>
+          <td class="cross">✗</td>
+          <td class="cross">✗</td>
+          <td class="cross">✗</td>
+          <td class="cross">✗</td>
+          <td class="check">✓</td>
+        </tr>
+        <tr>
+          <td>A2A (Google)</td>
+          <td class="cross">✗</td>
+          <td class="check">✓</td>
+          <td class="cross">✗</td>
+          <td class="partial">~</td>
+          <td class="cross">✗</td>
+          <td class="check">✓</td>
+        </tr>
+        <tr>
+          <td>x402 (Coinbase)</td>
+          <td class="cross">✗</td>
+          <td class="cross">✗</td>
+          <td class="cross">✗</td>
+          <td class="cross">✗</td>
+          <td class="check">✓</td>
+          <td class="check">✓</td>
+        </tr>
+        <tr>
+          <td>CF Pay-Per-Crawl</td>
+          <td class="cross">✗</td>
+          <td class="cross">✗</td>
+          <td class="partial">~</td>
+          <td class="cross">✗</td>
+          <td class="check">✓</td>
+          <td class="cross">✗</td>
+        </tr>
+        <tr>
+          <td>robots.txt</td>
+          <td class="cross">✗</td>
+          <td class="cross">✗</td>
+          <td class="partial">~</td>
+          <td class="cross">✗</td>
+          <td class="cross">✗</td>
+          <td class="check">✓</td>
+        </tr>
+        <tr style="background:rgba(232,160,32,0.05)">
+          <td style="color:var(--amber)!important">Tollway ★</td>
+          <td class="cross">✗</td>
+          <td class="cross">✗</td>
+          <td class="check">✓</td>
+          <td class="check">✓</td>
+          <td class="check">✓</td>
+          <td class="check">✓</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ─── CTA ───────────────────────────────────────────── -->
+<section class="cta-section">
+  <h2 class="cta-title">Open standard.<br>Zero gatekeepers.</h2>
+  <p class="cta-body">
+    The spec is CC BY 4.0. The code is MIT.<br>
+    No company owns it. Build on it freely.
+  </p>
+  <div class="cta-actions">
+    <a href="https://github.com/tollway-protocol/tollway" class="btn btn-primary">
+      GitHub →
+    </a>
+    <a href="https://discord.gg/tollway" class="btn btn-ghost">
+      Join Discord
+    </a>
+    <a href="https://tollway.dev/spec" class="btn btn-ghost">
+      Read Spec
+    </a>
+  </div>
+</section>
+
+<footer>
+  <span class="footer-logo">Toll<span>way</span></span>
+  <ul class="footer-links">
+    <li><a href="https://github.com/tollway-protocol/tollway">GitHub</a></li>
+    <li><a href="https://tollway.dev/spec">Spec</a></li>
+    <li><a href="https://discord.gg/tollway">Discord</a></li>
+    <li><a href="https://twitter.com/tollway_dev">Twitter</a></li>
+  </ul>
+  <span class="footer-copy">CC BY 4.0 + MIT · Open Standard</span>
+</footer>
+
+<script>
+  function showTab(id) {
+    document.querySelectorAll('.code-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.code-pane').forEach(p => p.classList.remove('active'));
+    document.getElementById('tab-' + id).classList.add('active');
+    event.target.classList.add('active');
+  }
+</script>
+
+</body>
+</html>

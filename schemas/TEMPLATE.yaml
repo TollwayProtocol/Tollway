@@ -1,0 +1,48 @@
+# Tollway Schema Template
+# Copy this file and fill in the selectors for your target site.
+# Filename: {domain}.yaml  (e.g. reuters.yaml)
+
+site: example.com
+version: "1"
+updated: "YYYY-MM-DD"
+maintainer: your-github-username
+
+# Optional: restrict schema to specific URL patterns
+path_pattern: "/articles/{id}"
+
+# Define the output fields and their types
+output:
+  title: string         # text content
+  author: string        # text content
+  published_at: datetime
+  content: string
+  tags: array
+
+# CSS selectors mapping output fields to DOM elements
+selectors:
+  title: "h1.article-title"
+  author: ".byline .author"
+  published_at: "time[datetime]"
+  content: ".article-body p"
+  tags: ".tag-list a"
+
+# Alternative selectors to try if primary fails
+fallback_selectors:
+  title:
+    - "h1"
+    - 'meta[property="og:title"]'
+  author:
+    - 'meta[name="author"]'
+
+# Post-processing transformations
+transformations:
+  title:
+    strip_prefix: "Article: "  # Remove common prefixes
+  content:
+    join: " "                   # Join array values with space
+
+# Test URLs to verify the schema works (minimum 3 required)
+test_urls:
+  - https://example.com/articles/123
+  - https://example.com/articles/456
+  - https://example.com/articles/789
