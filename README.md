@@ -59,9 +59,8 @@ That's it.
 
 | Package | Description | Install |
 |---|---|---|
-| [`tollway-client`](./packages/tollway-client) | Drop-in fetch replacement. Handles identity, payment, and extraction automatically. | `npm i tollway-client` |
-| [`tollway-server`](./packages/tollway-server) | Express/Next.js middleware. Auto-generates `tollway.json`, validates headers, logs agent traffic. | `npm i tollway-server` |
-| [`tollway-translator`](./packages/tollway-translator) | Works on non-enrolled sites. Schema-based + LLM fallback extraction. | `npm i tollway-translator` |
+| [`@tollway/client`](./packages/tollway-client) | Drop-in fetch wrapper. Attaches identity headers, reads `tollway.json`, retries Tollway `402` flows, and extracts basic structured metadata. | `npm i @tollway/client` |
+| [`@tollway/server`](./packages/tollway-server) | Express/Next.js middleware. Serves `tollway.json`, parses agent headers, enforces nonce/timestamp checks, and returns Tollway `402` payment requests. | `npm i @tollway/server` |
 
 ---
 
@@ -70,7 +69,7 @@ That's it.
 ### For Agent Developers
 
 ```typescript
-import { fetch } from 'tollway-client';
+import { fetch } from '@tollway/client';
 
 // Drop-in replacement for fetch
 // Automatically handles: identity headers, payment flows, structured extraction
@@ -94,7 +93,7 @@ console.log(result.cost);        // "0.001" USDC
 ### For Site Owners
 
 ```typescript
-import { tollwayMiddleware } from 'tollway-server';
+import { tollwayMiddleware } from '@tollway/server';
 
 // Express
 app.use(tollwayMiddleware({
@@ -110,10 +109,10 @@ app.use(tollwayMiddleware({
 
 This automatically:
 - Serves `/.well-known/tollway.json`
-- Validates agent identity headers
-- Returns `402` with pricing when free tier is exhausted
-- Verifies payment proofs
-- Logs all agent traffic to your dashboard
+- Parses Tollway identity headers
+- Enforces nonce and timestamp freshness checks
+- Returns `402` with pricing for configured paid actions
+- Logs agent traffic to your application output
 
 ---
 
@@ -194,7 +193,7 @@ Start at Level 0 in 5 minutes. Upgrade as needed.
 - [x] v0.1 spec
 - [x] `tollway-client` v0.1
 - [x] `tollway-server` v0.1
-- [x] Schema library seed (20 sites)
+- [x] Schema library seed (10 sites)
 - [ ] `tollway-translator` v0.1
 - [ ] LangChain integration
 - [ ] LlamaIndex connector
