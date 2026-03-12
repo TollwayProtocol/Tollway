@@ -1,8 +1,15 @@
 {
   "name": "@tollway/client",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Drop-in fetch replacement for AI agents — identity headers, policy enforcement, and payment flows",
-  "keywords": ["tollway", "ai-agent", "did", "micropayments", "web-access", "robots-txt"],
+  "keywords": [
+    "tollway",
+    "ai-agent",
+    "did",
+    "micropayments",
+    "web-access",
+    "robots-txt"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/TollwayProtocol/Tollway.git",
