@@ -16,6 +16,7 @@
     "test:coverage": "turbo test -- --coverage",
     "lint": "turbo lint",
     "typecheck": "turbo typecheck",
+    "schema:validate": "node scripts/validate-schemas.mjs",
     "clean": "turbo clean",
     "format": "prettier --write \"**/*.{ts,js,json,md,yaml}\" --ignore-path .gitignore"
   },
@@ -25,7 +26,8 @@
     "eslint": "^8.57.0",
     "prettier": "^3.3.3",
     "turbo": "^2.3.3",
-    "typescript": "^5.5.4"
+    "typescript": "^5.5.4",
+    "yaml": "^2.8.2"
   },
   "engines": {
     "node": ">=18"

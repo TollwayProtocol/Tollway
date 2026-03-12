@@ -20,12 +20,13 @@ Schemas are the fastest path to immediate value. Every schema you add means agen
 3. Inspect the target site's HTML using DevTools
 4. Fill in the selectors
 5. Test against at least 3 real URLs
-6. Submit a PR with the results
+6. Run `npm run schema:validate`
+7. Submit a PR with the results
 
 **Schema requirements:**
 - Must include at least `title` and `content` selectors
 - Must include 3+ `test_urls`
-- Selectors must work on current site HTML (we run CI against live sites weekly)
+- Selectors must work on current site HTML and include reproducible test URLs
 
 ---
 
