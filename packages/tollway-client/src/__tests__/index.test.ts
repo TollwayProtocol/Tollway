@@ -212,10 +212,15 @@ describe('fetch', () => {
       .mockResolvedValueOnce(makeResponse(JSON.stringify(paymentRequest), 402, 'application/json'))
       .mockResolvedValueOnce(makeResponse(MOCK_HTML));
 
+    const onPaymentRequired = jest.fn().mockResolvedValue(
+      JSON.stringify({ tx_hash: '0xabc', network: 'base', payment_id: 'pay_abc' }),
+    );
+
     const result = await tollwayFetch(`${origin}/`, {
-      tollway: { ...BASE_OPTS, wallet: '0xMyWallet', maxPriceUsdc: '0.01' },
+      tollway: { ...BASE_OPTS, wallet: '0xMyWallet', maxPriceUsdc: '0.01', onPaymentRequired },
     });
 
+    expect(onPaymentRequired).toHaveBeenCalledWith(paymentRequest);
     expect(mockFetch).toHaveBeenCalledTimes(3);
     expect(result.paid).toBe(true);
     expect(result.cost).toBe('0.001');
