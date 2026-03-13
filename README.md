@@ -4,8 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Spec: v0.1](https://img.shields.io/badge/Spec-v0.1-blue.svg)](./SPEC.md)
-[![Discord](https://img.shields.io/badge/Discord-Join-7289DA.svg)](https://discord.gg/tollway)
-[![npm: tollway-client](https://img.shields.io/npm/v/tollway-client.svg)](https://npmjs.com/package/tollway-client)
+[![npm: @tollway/client](https://img.shields.io/npm/v/@tollway/client.svg)](https://npmjs.com/package/@tollway/client)
 
 ---
 
@@ -59,8 +58,11 @@ That's it.
 
 | Package | Description | Install |
 |---|---|---|
-| [`@tollway/client`](./packages/tollway-client) | Drop-in fetch wrapper. Attaches identity headers, reads `tollway.json`, retries Tollway `402` flows, and extracts basic structured metadata. | `npm i @tollway/client` |
-| [`@tollway/server`](./packages/tollway-server) | Express/Next.js middleware. Serves `tollway.json`, parses agent headers, enforces nonce/timestamp checks, and returns Tollway `402` payment requests. | `npm i @tollway/server` |
+| [`@tollway/client`](./packages/tollway-client) | TypeScript agent client. Attaches identity headers, reads `tollway.json`, handles `402` payment retries with Ed25519 signing. | `npm i @tollway/client` |
+| [`@tollway/server`](./packages/tollway-server) | Express/Next.js middleware. Serves `tollway.json`, validates signatures, enforces nonce/timestamp, returns `402` for paid actions. | `npm i @tollway/server` |
+| [`@tollway/cli`](./packages/tollway-cli) | CLI tool. `tollway init` generates a DID keypair; `tollway fetch` makes signed requests from the terminal. | `npm i -g @tollway/cli` |
+| [`@tollway/payments`](./packages/tollway-payments) | USDC payment handler for Base mainnet + Sepolia. Integrates with `@tollway/client` to complete `402` flows on-chain. | `npm i @tollway/payments` |
+| [`tollway-server`](./sdks/python) | Python middleware for Flask and FastAPI. Ed25519 verification via PyNaCl, same protocol semantics as the TypeScript server. | `pip install tollway-server` |
 
 ---
 
@@ -152,14 +154,14 @@ MCP connects agents to tools. A2A connects agents to agents. Neither addresses h
 
 ## Conformance Levels
 
-| Level | What It Means |
+| Level | Requirements |
 |---|---|
-| **Level 0** | Serves `tollway.json` with basic policy |
-| **Level 1** | Validates agent identity + DID signatures |
-| **Level 2** | Enforces identity + minimum reputation scores |
-| **Level 3** | Full: identity + reputation + payment flows |
+| **Basic** | Serves `/.well-known/tollway.json`; reads and logs `X-Tollway-*` headers |
+| **Identity** | Validates DID, timestamp, nonce, and signature; enforces allowed/prohibited actions |
+| **Payment** | Implements the full `402` flow; verifies on-chain payment receipts |
+| **Full** | All of the above plus rate limiting and reputation gating |
 
-Start at Level 0 in 5 minutes. Upgrade as needed.
+Start at Basic in 5 minutes. Upgrade as needed.
 
 ---
 
@@ -167,39 +169,34 @@ Start at Level 0 in 5 minutes. Upgrade as needed.
 
 ```
 /
-├── SPEC.md                    # The full protocol specification
-├── GOVERNANCE.md              # How decisions are made
-├── CONTRIBUTING.md            # How to contribute
-├── schemas/                   # Community extraction schemas
-│   ├── techcrunch.yaml
-│   ├── hackernews.yaml
-│   ├── arxiv.yaml
-│   └── ...
+├── SPEC.md                    # The full protocol specification (CC BY 4.0)
+├── HN_LAUNCH.md               # Launch post draft
 ├── packages/
-│   ├── tollway-client/        # TypeScript client library
-│   ├── tollway-server/        # Server middleware
-│   └── tollway-translator/    # Universal extraction layer
-├── examples/
-│   ├── langchain-integration/
-│   ├── express-site/
-│   └── nextjs-site/
-└── rfcs/                      # Proposed spec changes
+│   ├── tollway-client/        # TypeScript agent client (@tollway/client)
+│   ├── tollway-server/        # Express/Next.js middleware (@tollway/server)
+│   ├── tollway-cli/           # CLI tool (@tollway/cli)
+│   └── tollway-payments/      # USDC payment handler (@tollway/payments)
+├── sdks/
+│   └── python/                # Python SDK (tollway-server on PyPI)
+├── demo/                      # Live demo server (tollway.vercel.app)
+└── website/                   # Landing page (static)
 ```
 
 ---
 
 ## Roadmap
 
-- [x] v0.1 spec
-- [x] `tollway-client` v0.1
-- [x] `tollway-server` v0.1
-- [x] Schema library seed (10 sites)
-- [ ] `tollway-translator` v0.1
+- [x] v0.1 spec (SPEC.md)
+- [x] `@tollway/client` — TypeScript agent client
+- [x] `@tollway/server` — Express/Next.js middleware
+- [x] `@tollway/cli` — CLI tool with DID keygen
+- [x] `@tollway/payments` — USDC payment handler (Base)
+- [x] `tollway-server` — Python SDK (Flask + FastAPI)
+- [x] Live demo server
 - [ ] LangChain integration
 - [ ] LlamaIndex connector
 - [ ] Reputation oracle reference implementation
 - [ ] IETF Internet Draft submission
-- [ ] W3C Community Group
 
 ---
 
@@ -207,23 +204,11 @@ Start at Level 0 in 5 minutes. Upgrade as needed.
 
 Tollway lives or dies by community adoption. The three highest-value contributions right now:
 
-1. **Add a schema** for a site you use frequently — [see template](./schemas/TEMPLATE.yaml)
-2. **Write an integration** for your agent framework of choice
+1. **Write an integration** for your agent framework of choice (LangChain, LlamaIndex, etc.)
+2. **Implement the server** in another language (Go, Rust, Ruby)
 3. **Adopt Tollway** on your site and share your experience
 
-[Read CONTRIBUTING.md →](./CONTRIBUTING.md)
-
----
-
-## Governance
-
-Tollway is steered by its contributors. No single company controls the spec.
-
-- Spec changes require an RFC with 2-week comment period
-- Any contributor with 3+ merged PRs may vote on RFC acceptance
-- The goal is eventual transfer to a neutral foundation (Linux Foundation preferred)
-
-[Read GOVERNANCE.md →](./GOVERNANCE.md)
+Open an issue or PR — all feedback welcome.
 
 ---
 
@@ -231,9 +216,8 @@ Tollway is steered by its contributors. No single company controls the spec.
 
 - Protocol specification: [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
 - Reference implementations: [MIT](./LICENSE)
-- Schema library: [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/)
 
 ---
 
-*Built because the web and AI agents should be able to work together.*  
+*Built because the web and AI agents should be able to work together.*
 *Discuss on [Discord](https://discord.gg/tollway) · Follow on [Twitter](https://twitter.com/tollway_dev)*
