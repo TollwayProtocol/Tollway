@@ -434,7 +434,8 @@ An agent that wants to train on content sends a signed request. The server respo
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 
-app.get('/', (_req, res) => {
+app.get('/', (req, res) => {
+  const baseUrl = `${req.protocol}://${req.get('host')}`;
   const articleItems = Object.entries(ARTICLES).map(([slug, a]) => `
     <li>
       <a href="/articles/${slug}">
@@ -459,7 +460,7 @@ app.get('/', (_req, res) => {
       </p>
       <div class="hero-cmd">
         <span class="prompt">$</span>
-        <span>npx @tollway/cli fetch ${BASE_URL}/articles/intro-to-tollway</span>
+        <span>npx @tollway/cli fetch ${baseUrl}/articles/intro-to-tollway</span>
       </div>
       <div class="hero-badges">
         <span class="badge green">✓ tollway.json served</span>
