@@ -1,6 +1,6 @@
 {
   "name": "@tollway/server",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Express/Next.js middleware for the Tollway protocol — policy serving, identity validation, and payment flows",
   "keywords": [
     "tollway",

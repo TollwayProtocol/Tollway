@@ -1,6 +1,6 @@
 {
   "name": "@tollway/cli",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "CLI for the Tollway protocol — generate agent identities, fetch URLs with identity headers, inspect site policies",
   "keywords": [
     "tollway",
@@ -64,12 +64,19 @@
   "jest": {
     "preset": "ts-jest/presets/default-esm",
     "testEnvironment": "node",
-    "extensionsToTreatAsEsm": [".ts"],
+    "extensionsToTreatAsEsm": [
+      ".ts"
+    ],
     "moduleNameMapper": {
       "^(\\.{1,2}/.*)\\.js$": "$1"
     },
     "transform": {
-      "^.+\\.tsx?$": ["ts-jest", { "useESM": true }]
+      "^.+\\.tsx?$": [
+        "ts-jest",
+        {
+          "useESM": true
+        }
+      ]
     }
   },
   "engines": {

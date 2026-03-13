@@ -1,6 +1,6 @@
 {
   "name": "@tollway/client",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Drop-in fetch replacement for AI agents — identity headers, policy enforcement, and payment flows",
   "keywords": [
     "tollway",

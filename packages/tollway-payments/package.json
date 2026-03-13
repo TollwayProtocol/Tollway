@@ -1,6 +1,6 @@
 {
   "name": "@tollway/payments",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "USDC micropayment handler for the Tollway protocol — sends on-chain payments via viem on Base",
   "keywords": [
     "tollway",
