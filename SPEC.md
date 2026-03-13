@@ -1,460 +1,372 @@
-# Tollway Protocol Specification v0.1
+# Tollway Protocol Specification
 
-**Status:** Draft  
-**Authors:** Tollway Contributors  
-**Repository:** github.com/tollway-protocol/tollway  
+**Version:** 0.1
+**Status:** Draft
 **License:** CC BY 4.0
+**Repository:** https://github.com/TollwayProtocol/Tollway
 
 ---
 
 ## Abstract
 
-Tollway is an open protocol that defines how AI agents identify themselves, request permission, and compensate web publishers when accessing content programmatically. It establishes a standard interface between agents and sites — analogous to what `robots.txt` did for crawlers, but extended with identity, economics, and structured data.
+Tollway is an open protocol for structured AI agent access to web content. It defines how agents identify themselves, how sites declare access policies, and how micropayments settle access to premium content — all over standard HTTP.
 
-The protocol consists of three components:
+The protocol has three pillars:
 
-1. **`tollway.json`** — a machine-readable policy file at `/.well-known/tollway.json` declaring site access rules, pricing, and data usage policies
-2. **Agent Identity Headers** — a standard set of HTTP request headers that agents attach to every request, establishing verifiable identity and intent
-3. **Payment Flow** — an extension of HTTP 402 using [x402](https://x402.org) for per-request or subscription micropayments in USDC
+1. **Identity** — Agents sign every request with an Ed25519 keypair. Sites know who is asking.
+2. **Policy** — Sites publish `tollway.json` declaring what agents can do, rate limits, and pricing.
+3. **Payments** — HTTP 402 + x402. Agents pay in USDC on Base when content requires it.
+
+---
+
+## Table of Contents
+
+1. [Motivation](#1-motivation)
+2. [Versioning](#2-versioning)
+3. [Agent Identity](#3-agent-identity)
+4. [Request Headers](#4-request-headers)
+5. [Request Signing](#5-request-signing)
+6. [The Tollway Policy File](#6-the-tollway-policy-file)
+7. [HTTP 402 Payment Flow](#7-http-402-payment-flow)
+8. [Response Headers](#8-response-headers)
+9. [Error Codes](#9-error-codes)
+10. [Conformance Levels](#10-conformance-levels)
+11. [Security Considerations](#11-security-considerations)
+12. [Changelog](#12-changelog)
 
 ---
 
 ## 1. Motivation
 
-The web was built for humans. AI agents are increasingly the primary consumers of web content, yet no standard exists for how they should identify themselves, request access, or compensate publishers.
+AI agents increasingly browse the web on behalf of users and organizations. Today they do so with no identity, no accountability, and no mechanism to compensate publishers for training data or premium access.
 
-The current dynamic is adversarial:
+`robots.txt` was designed for crawlers that respect conventions voluntarily. It has no authentication, no payment layer, and no way to distinguish a research agent from a bulk scraper.
 
-- Publishers block agents to protect server resources and content value
-- Agents scrape without permission, ignoring `robots.txt`, stripping attribution
-- No payment flows exist between agents and content producers
-- No identity layer lets publishers distinguish legitimate agents from malicious scrapers
+Tollway gives sites a machine-readable policy layer with real enforcement:
 
-**Key data points:**
-- AI crawler traffic increased 300% in 2025
-- 80%+ of Cloudflare customers now block AI bots
-- OpenAI's scrape-to-referral ratio is approximately 1,700:1
-- 336% increase in sites actively blocking AI crawlers (Tollbit, Q2 2025)
-
-Tollway makes the relationship cooperative by giving both sides what they need:
-- **Publishers** get identity verification, policy control, and revenue
-- **Agents** get structured data, reliable access, and a reputational track record
+- An agent that wants to train on content must be able to pay for it.
+- An agent that misbehaves can be blocked by DID.
+- A publisher can allow free reads but charge for bulk training.
+- Attribution requirements are expressed programmatically, not hoped for.
 
 ---
 
-## 2. Design Principles
+## 2. Versioning
 
-1. **Open by default.** The spec is owned by the community. No single company controls it.
-2. **Backwards compatible.** Sites that do nothing are treated as unenrolled, not blocked.
-3. **Graduated participation.** Sites can adopt any subset: identity-only, policy-only, or full payment flows.
-4. **Decentralized identity.** Agent identity is anchored to DIDs, not centralized registries.
-5. **Economics optional.** Payment is supported but not required. Sites may offer free access to verified agents.
-6. **Protocol, not platform.** Tollway defines the interface. Implementations are free.
+The protocol version is `0.1`. It is communicated in the `X-Tollway-Version` request header and the `version` field of `tollway.json`.
+
+Minor backwards-compatible additions increment the minor version. Breaking changes increment the major version. Servers SHOULD accept requests with any version whose major component matches their own.
 
 ---
 
-## 3. `tollway.json`
+## 3. Agent Identity
 
-### 3.1 Location
+### 3.1 DID Format
 
-Sites MUST serve `tollway.json` at:
+Every Tollway agent has a Decentralized Identifier (DID) using the `did:key` method with an Ed25519 public key.
 
 ```
-https://{domain}/.well-known/tollway.json
+did:key:z<base58btc(multicodec_prefix || raw_public_key)>
 ```
 
-### 3.2 Full Schema
+Where:
+- `z` is the multibase prefix for base58btc encoding
+- `multicodec_prefix` is `0xed 0x01` (Ed25519 public key codec)
+- `raw_public_key` is the 32-byte Ed25519 public key
 
-```json
+**Example:**
+```
+did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK
+```
+
+### 3.2 Key Generation
+
+Agents MUST generate a fresh Ed25519 keypair. The private key MUST be stored securely and never transmitted. The public key is encoded into the DID as described above.
+
+Using `@tollway/cli`:
+```bash
+npx @tollway/cli init
+```
+
+### 3.3 Principal Identity
+
+An agent MAY declare a `principalDid` — the DID of the operator or organization that controls the agent. This allows sites to apply per-operator policies and enables accountability chains.
+
+---
+
+## 4. Request Headers
+
+All Tollway headers use the `X-Tollway-` prefix. Headers marked **REQUIRED** MUST be present when operating as a Tollway agent. Headers marked **OPTIONAL** MAY be included to provide additional context.
+
+| Header | Required | Description |
+|--------|----------|-------------|
+| `X-Tollway-Version` | REQUIRED | Protocol version, e.g. `0.1` |
+| `X-Tollway-DID` | REQUIRED | Agent's DID, e.g. `did:key:z6Mk...` |
+| `X-Tollway-Purpose` | REQUIRED | Human-readable description of why this request is being made |
+| `X-Tollway-Scope` | REQUIRED | One of: `read`, `search`, `summarize`, `train`, `scrape_bulk` |
+| `X-Tollway-Nonce` | REQUIRED | A UUID v4 unique to this request, used for replay protection |
+| `X-Tollway-Timestamp` | REQUIRED | ISO 8601 UTC timestamp, e.g. `2026-03-13T14:00:00.000Z` |
+| `X-Tollway-Signature` | REQUIRED | Base64url-encoded Ed25519 signature over the canonical string (§5) |
+| `X-Tollway-Principal` | OPTIONAL | DID of the operator or organization controlling this agent |
+| `X-Tollway-Wallet` | OPTIONAL | EVM wallet address for payment |
+| `X-Tollway-Framework` | OPTIONAL | Agent framework identifier, e.g. `langchain/0.3.0` |
+| `X-Tollway-Reputation-Oracle` | OPTIONAL | URL of the reputation oracle the server should query |
+| `X-Tollway-Payment` | OPTIONAL | JSON-encoded payment receipt (§7.3); present only on payment retries |
+
+### 4.1 Scope Semantics
+
+| Scope | Meaning |
+|-------|---------|
+| `read` | Reading or retrieving content for agent use |
+| `search` | Querying or searching an index |
+| `summarize` | Summarizing content; implies condensed output returned to a user |
+| `train` | Using content for model training or fine-tuning |
+| `scrape_bulk` | High-volume automated retrieval |
+
+Sites SHOULD charge more for `train` and `scrape_bulk` than for `read`, reflecting the higher commercial value of those operations.
+
+---
+
+## 5. Request Signing
+
+### 5.1 Canonical String
+
+The signature covers a canonical string formed by joining the following fields with newline characters (`\n`):
+
+```
+{DID}\n{Purpose}\n{Scope}\n{Nonce}\n{Timestamp}\n{Method}\n{URL}
+```
+
+Where:
+- `{DID}` is the value of `X-Tollway-DID`
+- `{Purpose}` is the value of `X-Tollway-Purpose`
+- `{Scope}` is the value of `X-Tollway-Scope`
+- `{Nonce}` is the value of `X-Tollway-Nonce`
+- `{Timestamp}` is the value of `X-Tollway-Timestamp`
+- `{Method}` is the HTTP method in uppercase, e.g. `GET`
+- `{URL}` is the full request URL including scheme and query string
+
+**Example canonical string:**
+```
+did:key:z6MkhaXgBZ...
+Research for climate report
+read
+550e8400-e29b-41d4-a716-446655440000
+2026-03-13T14:00:00.000Z
+GET
+https://example.com/articles/climate-change
+```
+
+### 5.2 Signing
+
+The canonical string MUST be signed with the agent's Ed25519 private key. The signature MUST be base64url-encoded (no padding) and placed in `X-Tollway-Signature`.
+
+```
+signature = base64url(ed25519_sign(private_key, utf8(canonical_string)))
+```
+
+### 5.3 Verification
+
+Servers MUST:
+1. Reconstruct the canonical string from the request headers and URL.
+2. Decode the DID to extract the raw Ed25519 public key: strip `did:key:z`, base58btc-decode, drop the 2-byte multicodec prefix `0xed 0x01`.
+3. Verify the signature using Ed25519.
+4. Reject with `400` if the signature is invalid.
+5. Reject with `400` if the timestamp is more than 5 minutes from the server's current time.
+6. Reject with `400` if the nonce has been seen within the last 10 minutes. Servers MUST maintain a nonce store for at least 10 minutes.
+
+Servers SHOULD indicate verification result in the `X-Tollway-Verified` response header.
+
+---
+
+## 6. The Tollway Policy File
+
+### 6.1 Discovery
+
+Sites MUST serve their policy at:
+```
+/.well-known/tollway.json
+```
+
+The response MUST have `Content-Type: application/json`. Agents SHOULD cache the policy for the duration specified in `cache_ttl_seconds`, defaulting to 5 minutes if absent.
+
+### 6.2 Schema
+
+```jsonc
 {
-  "$schema": "https://tollway.dev/schema/v0.1/tollway.schema.json",
-  "version": "0.1",
-  "updated": "2026-01-01T00:00:00Z",
+  "version": "0.1",                          // REQUIRED
+  "updated": "2026-03-13T00:00:00.000Z",
 
   "identity": {
-    "require_did": true,
-    "minimum_reputation": 0.6,
-    "allowed_principals": [],
-    "blocked_principals": []
+    "require_did": false,                    // Reject requests without X-Tollway-DID
+    "minimum_reputation": 0.5,              // 0.0–1.0; checked against reputation oracle
+    "allowed_principals": ["did:key:z6Mk..."],
+    "blocked_principals": ["did:key:z6Bad..."]
   },
 
   "pricing": {
     "currency": "USDC",
-    "default_per_request": "0.001",
     "free_requests_per_day": 100,
+    "default_per_request": "0.001",
     "schedule": [
-      {
-        "action": "read",
-        "price": "0.001"
-      },
-      {
-        "action": "search",
-        "price": "0.002"
-      },
-      {
-        "action": "summarize",
-        "price": "0.005"
-      },
-      {
-        "action": "train",
-        "price": "0.05"
-      }
-    ],
-    "subscription": {
-      "available": true,
-      "monthly_usdc": "9.99",
-      "contact": "agents@example.com"
-    }
+      { "action": "read",       "price": "0.001" },
+      { "action": "summarize",  "price": "0.005" },
+      { "action": "train",      "price": "0.05"  }
+    ]
   },
 
   "data_policy": {
     "cache_allowed": true,
     "cache_ttl_seconds": 3600,
     "training_allowed": false,
-    "training_requires_payment": true,
     "attribution_required": true,
-    "attribution_format": "{title} ({url})"
+    "attribution_format": "{title} ({url})"  // Tokens: {title}, {url}, {author}, {date}
   },
 
   "rate_limits": {
-    "requests_per_minute": 60,
-    "requests_per_day": 10000,
-    "burst_allowance": 10
+    "requests_per_minute": 30,
+    "requests_per_day": 1000
   },
 
   "actions": {
     "allowed": ["read", "search", "summarize"],
-    "prohibited": ["train", "scrape_bulk"],
-    "require_payment": ["train", "summarize"]
+    "prohibited": ["scrape_bulk"],           // Returns 403
+    "require_payment": ["train"]             // Returns 402
   },
 
   "endpoints": {
     "agent_api": "https://example.com/api/agent",
-    "schema_url": "https://example.com/api/agent/schema",
-    "payment_address": "0xYourWalletAddressHere"
-  },
-
-  "contact": {
-    "email": "webmaster@example.com",
-    "abuse": "abuse@example.com"
+    "schema_url": "https://example.com/.well-known/tollway-schema.yaml",
+    "payment_address": "0xYourAddress",
+    "payment_network": "base"
   }
 }
 ```
 
-### 3.3 Field Reference
-
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `version` | string | yes | Spec version. Currently `"0.1"` |
-| `updated` | ISO 8601 | yes | Last modification timestamp |
-| `identity.require_did` | boolean | no | If true, agent must provide a valid DID |
-| `identity.minimum_reputation` | float 0-1 | no | Minimum reputation score required |
-| `pricing.currency` | string | no | Payment currency. Default: `"USDC"` |
-| `pricing.free_requests_per_day` | int | no | Free tier before payment required |
-| `data_policy.cache_allowed` | boolean | no | Whether agent may cache responses |
-| `data_policy.training_allowed` | boolean | no | Whether content may be used for model training |
-| `data_policy.attribution_required` | boolean | no | Whether agent must cite the source |
+All fields except `version` are OPTIONAL. Absent fields imply permissive defaults.
 
 ---
 
-## 4. Agent Identity Headers
+## 7. HTTP 402 Payment Flow
 
-Every compliant agent request MUST include the following HTTP headers.
-
-### 4.1 Required Headers
-
-```http
-X-Tollway-DID: did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK
-X-Tollway-Principal: did:key:z6MkgmcYMQPfHubW4xBjSkmVF5S2jaGZ9K3gMbEmNqh5o9vK
-X-Tollway-Purpose: research
-X-Tollway-Scope: read
-X-Tollway-Nonce: 7f3d2a1b-4e5c-4f6a-8b9d-0c1e2f3a4b5c
-X-Tollway-Timestamp: 2026-01-01T12:00:00Z
-X-Tollway-Signature: base64url(ed25519_sign(DID_private_key, canonical_request_string))
-```
-
-### 4.2 Optional Headers
-
-```http
-X-Tollway-Reputation-Oracle: https://reputation.tollway.dev/v1
-X-Tollway-Wallet: 0xYourAgentWalletAddress
-X-Tollway-Session: session_abc123
-X-Tollway-Framework: langchain/0.3.0
-```
-
-### 4.3 Header Definitions
-
-**`X-Tollway-DID`** — The agent's [Decentralized Identifier](https://www.w3.org/TR/did-core/). Used as the primary identity anchor. Must be a valid DID URI.
-
-**`X-Tollway-Principal`** — The DID of the human or organization operating this agent. Enables publishers to distinguish the agent instance from its operator.
-
-**`X-Tollway-Purpose`** — A short, human-readable description of why the agent is accessing this content. Free-form string, max 256 characters. Examples: `research`, `price_comparison`, `news_aggregation`.
-
-**`X-Tollway-Scope`** — The action the agent intends to perform. MUST be one of: `read`, `search`, `summarize`, `train`, `scrape_bulk`. Sites use this to apply the correct pricing tier.
-
-**`X-Tollway-Nonce`** — A UUID v4. Prevents replay attacks. Servers SHOULD store recent nonces and reject duplicates within a 5-minute window.
-
-**`X-Tollway-Timestamp`** — ISO 8601 UTC timestamp of the request. Servers SHOULD reject requests with timestamps more than 5 minutes old.
-
-**`X-Tollway-Signature`** — Ed25519 signature of the canonical request string (see §4.4), base64url-encoded.
-
-### 4.4 Canonical Request String
-
-The signature covers the following string, newline-separated:
+### 7.1 Flow
 
 ```
-{X-Tollway-DID}
-{X-Tollway-Purpose}
-{X-Tollway-Scope}
-{X-Tollway-Nonce}
-{X-Tollway-Timestamp}
-{HTTP_METHOD}
-{REQUEST_URL}
+Agent  →  GET /article  (X-Tollway-Scope: train)
+Server →  402 Payment Required  { price, payment_address, payment_id, ... }
+Agent  →  sends USDC on-chain to payment_address
+Agent  →  GET /article  (X-Tollway-Payment: { tx_hash, payment_id, ... })
+Server →  200 OK  (after verifying tx on-chain)
 ```
 
-Example:
-```
-did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK
-research
-read
-7f3d2a1b-4e5c-4f6a-8b9d-0c1e2f3a4b5c
-2026-01-01T12:00:00Z
-GET
-https://techcrunch.com/2026/01/01/ai-news/
-```
+### 7.2 402 Response Body
 
----
-
-## 5. Payment Flow
-
-Tollway uses [x402](https://x402.org) — an HTTP 402 extension for USDC micropayments — as its payment rail.
-
-### 5.1 Flow Overview
-
-```
-Agent                          Site
-  |                              |
-  |------ GET /article ---------->|
-  |                              |
-  |<----- 402 Payment Required --|
-  |       X-Payment-Required: {  |
-  |         "price": "0.001",    |
-  |         "currency": "USDC",  |
-  |         "address": "0x...",  |
-  |         "network": "base"    |
-  |       }                      |
-  |                              |
-  |  [agent signs + submits tx]  |
-  |                              |
-  |------ GET /article ---------->|
-  |       X-Payment-Proof: {tx}  |
-  |                              |
-  |<----- 200 OK + content ------|
-  |                              |
-  |  [site verifies on-chain     |
-  |   asynchronously]            |
-```
-
-### 5.2 402 Response
-
-```http
-HTTP/1.1 402 Payment Required
-Content-Type: application/json
-
+```json
 {
   "tollway_version": "0.1",
-  "price": "0.001",
+  "price": "0.05",
   "currency": "USDC",
   "network": "base",
-  "payment_address": "0xYourWalletAddressHere",
+  "payment_address": "0xYourAddress",
   "payment_id": "pay_abc123",
-  "expires_at": "2026-01-01T12:05:00Z",
-  "memo": "Read access: /article/ai-news"
+  "expires_at": "2026-03-13T14:10:00.000Z",
+  "memo": "train access: /articles/climate-change"
 }
 ```
 
-### 5.3 Payment Proof Header
+### 7.3 Payment Receipt Header
 
-After completing the on-chain transaction, the agent retries with:
-
-```http
-X-Tollway-Payment: {
+```json
+{
   "tx_hash": "0xabc123...",
   "network": "base",
-  "payment_id": "pay_abc123"
+  "payment_id": "pay_abc123",
+  "amount": "0.05",
+  "currency": "USDC"
 }
 ```
 
-### 5.4 Optimistic Serving
+Servers MUST verify the transaction on-chain before serving content. Servers SHOULD cache verified receipts by `payment_id`.
 
-Sites SHOULD serve content optimistically upon receiving a valid `X-Tollway-Payment` header, then verify the transaction on-chain asynchronously. This keeps latency low. Sites MAY block repeat offenders whose payment proofs consistently fail verification.
+### 7.4 USDC Contract Addresses
 
----
-
-## 6. Reputation Protocol
-
-### 6.1 Overview
-
-Agent reputation is a float between 0.0 and 1.0, publicly queryable from any compliant reputation oracle. There is no central authority — multiple oracles may exist, and sites may choose which to trust.
-
-### 6.2 Score Computation
-
-Oracles SHOULD compute reputation from a weighted combination of:
-
-| Factor | Weight | Description |
-|---|---|---|
-| Payment reliability | 0.40 | % of payment proofs that verified on-chain |
-| Policy compliance | 0.30 | % of requests that respected site `tollway.json` |
-| Request integrity | 0.20 | % of requests with valid signatures and fresh timestamps |
-| Age | 0.10 | Days since DID first observed (normalized) |
-
-### 6.3 Oracle API
-
-```
-GET https://reputation.tollway.dev/v1/{did}
-
-Response:
-{
-  "did": "did:key:z6Mk...",
-  "score": 0.87,
-  "observations": 14392,
-  "last_seen": "2026-01-01T11:00:00Z",
-  "flags": []
-}
-```
-
-### 6.4 Flag Values
-
-| Flag | Meaning |
-|---|---|
-| `payment_fraud` | Submitted invalid payment proofs |
-| `replay_attack` | Reused nonces |
-| `policy_violation` | Repeatedly ignored `tollway.json` restrictions |
-| `impersonation` | Used another agent's DID |
+| Network | Chain ID | USDC Address |
+|---------|----------|-------------|
+| Base mainnet | 8453 | `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` |
+| Base Sepolia | 84532 | `0x036CbD53842c5426634e7929541eC2318f3dCF7e` |
 
 ---
 
-## 7. The Translator Layer
+## 8. Response Headers
 
-For sites that have not adopted Tollway, compliant clients SHOULD implement a translator that:
-
-1. Fetches the raw HTML
-2. Attempts schema-based structured extraction (CSS selectors from the public schema library)
-3. Falls back to LLM-based extraction if no schema exists
-4. Returns a normalized JSON object regardless of the site's participation level
-
-This means Tollway clients work on day one, against the entire web, without any site adoption required.
-
----
-
-## 8. Security Considerations
-
-### 8.1 Replay Attacks
-Servers MUST store nonces for a minimum of 5 minutes and reject duplicate nonces within that window.
-
-### 8.2 Timestamp Drift
-Servers SHOULD reject requests with `X-Tollway-Timestamp` more than 300 seconds from the server's current time.
-
-### 8.3 Signature Verification
-Servers MUST verify `X-Tollway-Signature` using the public key derived from `X-Tollway-DID` before granting elevated access or processing payment.
-
-### 8.4 DID Resolution
-Servers MUST resolve DIDs against the DID Universal Resolver or equivalent before accepting identity claims.
-
-### 8.5 Payment Finality
-Servers MUST NOT grant permanent access based on an unconfirmed transaction. Optimistic serving is acceptable for low-value content; high-value content SHOULD wait for on-chain confirmation.
+| Header | Description |
+|--------|-------------|
+| `X-Tollway-Version` | Protocol version used by this server |
+| `X-Tollway-Served` | `true` — indicates Tollway middleware processed this request |
+| `X-Tollway-Verified` | `true` if the agent signature was verified; `false` otherwise |
+| `X-Tollway-Scope` | The scope that was applied |
+| `X-Tollway-Policy-Updated` | `true` if the policy has changed since last fetch |
 
 ---
 
-## 9. Conformance Levels
+## 9. Error Codes
+
+| Status | `error` value | Reason |
+|--------|--------------|--------|
+| `400` | `timestamp_invalid` | Timestamp more than 5 minutes from server time |
+| `400` | `nonce_replayed` | Nonce already seen within 10 minutes |
+| `400` | `did_invalid` | Malformed DID |
+| `400` | `signature_invalid` | Ed25519 signature verification failed |
+| `402` | _(see §7.2)_ | Payment required |
+| `403` | `scope_prohibited` | Scope in `actions.prohibited` |
+| `403` | `did_not_allowed` | DID not in `identity.allowed_principals` |
+| `403` | `did_blocked` | DID in `identity.blocked_principals` |
+| `403` | `reputation_insufficient` | Reputation score below `minimum_reputation` |
+| `429` | `rate_limit_exceeded` | Request rate exceeded |
+
+---
+
+## 10. Conformance Levels
 
 | Level | Requirements |
-|---|---|
-| **Level 0 (Aware)** | Serves `tollway.json` with basic policy. No identity or payment required. |
-| **Level 1 (Identity)** | Validates agent identity headers and DID signatures. |
-| **Level 2 (Gated)** | Enforces identity + reputation minimums before serving. |
-| **Level 3 (Full)** | Identity + reputation + payment flows. Full conformance. |
+|-------|-------------|
+| **Basic** | Serves `/.well-known/tollway.json`; reads and logs `X-Tollway-*` headers |
+| **Identity** | Validates DID, timestamp, nonce, and signature; enforces allowed/prohibited actions |
+| **Payment** | Implements the full 402 flow; verifies on-chain payment receipts |
+| **Full** | All of the above plus rate limiting and reputation gating |
 
 ---
 
-## 10. Versioning
+## 11. Security Considerations
 
-The protocol version is declared in `tollway.json` and in the `402` response body. Clients MUST include the version they support in requests via:
+**Replay attacks:** Servers MUST reject nonces seen within the last 10 minutes. Distributed deployments SHOULD use a shared nonce store.
 
-```http
-X-Tollway-Version: 0.1
-```
+**Timestamp skew:** Servers MUST reject requests whose timestamp is more than 5 minutes from server time. Both parties are assumed to be NTP-synchronized.
 
-Servers SHOULD serve appropriate responses for the declared version. Unrecognized versions SHOULD be treated as the latest supported.
+**DID spoofing:** The DID is derived from the public key — no central registry exists. Servers MUST NOT trust a DID without verifying the signature.
 
----
+**Payment verification:** Servers MUST verify payment receipts on-chain. Accepting an unverified `tx_hash` is equivalent to not enforcing payment.
 
-## Appendix A: Relationship to Existing Standards
-
-| Standard | Relationship |
-|---|---|
-| `robots.txt` | Tollway is the successor for the agentic era — richer policy, not just allow/deny |
-| MCP (Anthropic) | MCP connects agents to tools; Tollway connects agents to the open web |
-| A2A (Google) | A2A is agent-to-agent; Tollway is agent-to-site |
-| x402 (Coinbase) | Tollway uses x402 as its payment rail |
-| Cloudflare Pay Per Crawl | Centralized implementation of similar economics; Tollway is the open standard |
-| W3C DID | Tollway uses DIDs for agent identity |
+**Rate limit evasion:** Adversaries may generate many DIDs to evade per-DID limits. Servers SHOULD apply IP-level rate limiting as a secondary defence.
 
 ---
 
-## Appendix B: Example `tollway.json` Configurations
+## 12. Changelog
 
-### Minimal (policy only, no payment)
-```json
-{
-  "version": "0.1",
-  "updated": "2026-01-01T00:00:00Z",
-  "data_policy": {
-    "training_allowed": false,
-    "attribution_required": true
-  }
-}
-```
-
-### News Publisher (paid read access)
-```json
-{
-  "version": "0.1",
-  "updated": "2026-01-01T00:00:00Z",
-  "identity": { "require_did": true, "minimum_reputation": 0.5 },
-  "pricing": {
-    "currency": "USDC",
-    "free_requests_per_day": 10,
-    "schedule": [
-      { "action": "read", "price": "0.002" },
-      { "action": "summarize", "price": "0.01" },
-      { "action": "train", "price": "0.10" }
-    ]
-  },
-  "data_policy": {
-    "cache_allowed": true,
-    "cache_ttl_seconds": 1800,
-    "training_allowed": false,
-    "attribution_required": true
-  }
-}
-```
-
-### Developer Docs (free for verified agents)
-```json
-{
-  "version": "0.1",
-  "updated": "2026-01-01T00:00:00Z",
-  "identity": { "require_did": true, "minimum_reputation": 0.3 },
-  "pricing": { "free_requests_per_day": 10000 },
-  "data_policy": {
-    "cache_allowed": true,
-    "training_allowed": true,
-    "attribution_required": false
-  }
-}
-```
+| Version | Date | Notes |
+|---------|------|-------|
+| 0.1 | 2026-03-13 | Initial draft |
 
 ---
 
-*Tollway is an open standard. Contributions welcome at github.com/tollway-protocol/tollway.*
+## Implementations
+
+| Language | Package | Type |
+|----------|---------|------|
+| TypeScript | [`@tollway/client`](https://npmjs.com/package/@tollway/client) | Agent client |
+| TypeScript | [`@tollway/server`](https://npmjs.com/package/@tollway/server) | Server middleware (Express, Next.js) |
+| TypeScript | [`@tollway/cli`](https://npmjs.com/package/@tollway/cli) | CLI tool |
+| TypeScript | [`@tollway/payments`](https://npmjs.com/package/@tollway/payments) | USDC payment handler |
+| Python | [`tollway-server`](https://pypi.org/project/tollway-server) | Server middleware (Flask, FastAPI) |
+
+*This specification is licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).*

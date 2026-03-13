@@ -1,0 +1,65 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "tollway-server"
+version = "0.1.0"
+description = "Python SDK for the Tollway protocol — Flask and FastAPI middleware for AI agent identity, policy, and micropayments."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+keywords = ["tollway", "ai", "agents", "identity", "did", "web3", "micropayments"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Internet :: WWW/HTTP :: WSGI :: Middleware",
+  "Topic :: Security :: Cryptography",
+  "Framework :: Flask",
+  "Framework :: FastAPI",
+]
+
+# Core dependencies required regardless of the web framework used
+dependencies = [
+  "pynacl>=1.5",
+  "base58>=2.1",
+]
+
+[project.optional-dependencies]
+flask = [
+  "flask>=2.0",
+]
+fastapi = [
+  "fastapi>=0.100",
+  "starlette>=0.27",
+]
+all = [
+  "flask>=2.0",
+  "fastapi>=0.100",
+  "starlette>=0.27",
+]
+dev = [
+  "pytest>=7.0",
+  "pytest-asyncio>=0.21",
+  "httpx>=0.24",
+  "flask>=2.0",
+  "fastapi>=0.100",
+  "starlette>=0.27",
+]
+
+[project.urls]
+Homepage = "https://tollway.dev"
+Repository = "https://github.com/TollwayProtocol/Tollway"
+"Bug Tracker" = "https://github.com/TollwayProtocol/Tollway/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["tollway"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
