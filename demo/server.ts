@@ -182,8 +182,14 @@ app.get('/health', (_req, res) => {
 
 // ─── Start ────────────────────────────────────────────────────────────────────
 
-app.listen(PORT, () => {
-  console.log(`Tollway demo server running on port ${PORT}`);
-  console.log(`Policy: http://localhost:${PORT}/.well-known/tollway.json`);
-  console.log(`Try:    npx @tollway/cli fetch http://localhost:${PORT}/articles/intro-to-tollway`);
-});
+// Export for Vercel serverless runtime
+export default app;
+
+// Start local server when run directly (not on Vercel)
+if (process.env.VERCEL !== '1') {
+  app.listen(PORT, () => {
+    console.log(`Tollway demo server running on port ${PORT}`);
+    console.log(`Policy: http://localhost:${PORT}/.well-known/tollway.json`);
+    console.log(`Try:    npx @tollway/cli fetch http://localhost:${PORT}/articles/intro-to-tollway`);
+  });
+}
