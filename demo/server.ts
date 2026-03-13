@@ -350,15 +350,18 @@ const CSS = `
 
   /* ── Mobile ── */
   @media (max-width: 640px) {
-    .container { padding: 0 16px; }
-    nav .inner { padding: 0 16px; gap: 8px; }
+    html, body { overflow-x: hidden; }
+
+    .container { padding: 0 16px; max-width: 100%; }
+    nav .inner { padding: 0 16px; gap: 8px; max-width: 100%; }
     .nav-badge { display: none; }
     nav .links { gap: 12px; }
     nav .links a { font-size: 12px; }
 
     .hero { padding: 48px 0 40px; }
     .hero-cmd {
-      display: flex;
+      display: block;
+      width: 100%;
       max-width: 100%;
       overflow-x: auto;
       white-space: nowrap;
@@ -379,6 +382,7 @@ const CSS = `
       gap: 8px;
     }
 
+    .policy-box { padding: 12px 16px; }
     .policy-row {
       flex-direction: column;
       align-items: flex-start;
@@ -386,6 +390,8 @@ const CSS = `
       padding: 12px 0;
     }
     .policy-row .val { font-size: 13px; }
+
+    .code-block { font-size: 12px; padding: 16px; }
 
     .section { padding: 32px 0; }
   }
