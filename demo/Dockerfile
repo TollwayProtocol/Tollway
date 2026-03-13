@@ -2,8 +2,8 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-COPY package.json package-lock.json tsconfig.json ./
-RUN npm ci
+COPY package.json tsconfig.json ./
+RUN npm install
 
 COPY server.ts ./
 RUN npx tsc
@@ -13,11 +13,13 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-COPY --from=builder /app/package.json ./
-COPY --from=builder /app/node_modules ./node_modules
+COPY package.json ./
+RUN npm install --omit=dev
+
 COPY --from=builder /app/dist ./dist
 
-ENV PORT=3000
-EXPOSE 3000
+ENV PORT=8080
+ENV NODE_ENV=production
+EXPOSE 8080
 
 CMD ["node", "dist/server.js"]
