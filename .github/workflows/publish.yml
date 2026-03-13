@@ -44,3 +44,15 @@ jobs:
         working-directory: packages/tollway-server
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @tollway/payments
+        run: npm publish --provenance --access public
+        working-directory: packages/tollway-payments
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @tollway/cli
+        run: npm publish --provenance --access public
+        working-directory: packages/tollway-cli
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

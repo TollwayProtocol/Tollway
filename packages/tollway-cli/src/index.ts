@@ -10,92 +10,14 @@
 
 import { Command } from 'commander';
 import chalk from 'chalk';
-import * as fs from 'fs';
-import * as path from 'path';
-import * as os from 'os';
-import * as crypto from 'crypto';
 import { fetch as tollwayFetch, getReputation } from '@tollway/client';
-
-// ─── Config ───────────────────────────────────────────────────────────────────
-
-const CONFIG_DIR = path.join(os.homedir(), '.tollway');
-const CONFIG_FILE = path.join(CONFIG_DIR, 'config.json');
-
-interface TollwayConfig {
-  did: string;
-  privateKey: string;
-  wallet?: string;
-}
-
-function loadConfig(): TollwayConfig | null {
-  try {
-    const raw = fs.readFileSync(CONFIG_FILE, 'utf8');
-    return JSON.parse(raw) as TollwayConfig;
-  } catch {
-    return null;
-  }
-}
-
-function saveConfig(config: TollwayConfig): void {
-  fs.mkdirSync(CONFIG_DIR, { recursive: true });
-  fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2), {
-    mode: 0o600, // Owner read/write only
-  });
-}
-
-// ─── DID Key Generation ───────────────────────────────────────────────────────
-
-// Base58 alphabet (Bitcoin/IPFS)
-const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-
-function base58Encode(bytes: Uint8Array): string {
-  let num = BigInt('0x' + Buffer.from(bytes).toString('hex'));
-  const base = BigInt(58);
-  const result: string[] = [];
-
-  while (num > 0n) {
-    result.unshift(BASE58_ALPHABET[Number(num % base)]);
-    num = num / base;
-  }
-
-  // Leading zeros
-  for (const byte of bytes) {
-    if (byte === 0) result.unshift('1');
-    else break;
-  }
-
-  return result.join('');
-}
-
-interface KeyPair {
-  did: string;
-  privateKeyHex: string;
-  publicKeyHex: string;
-}
-
-function generateDidKeyPair(): KeyPair {
-  // Generate Ed25519 key pair
-  const { privateKey, publicKey } = crypto.generateKeyPairSync('ed25519', {
-    privateKeyEncoding: { type: 'pkcs8', format: 'der' },
-    publicKeyEncoding: { type: 'spki', format: 'der' },
-  });
-
-  // Extract raw 32-byte keys from DER encoding
-  // Ed25519 PKCS8: last 32 bytes are private key
-  // Ed25519 SPKI: last 32 bytes are public key
-  const rawPrivate = privateKey.subarray(privateKey.length - 32);
-  const rawPublic = publicKey.subarray(publicKey.length - 32);
-
-  // Build did:key with multicodec prefix 0xed01 (Ed25519 public key)
-  const multicodecKey = new Uint8Array([0xed, 0x01, ...rawPublic]);
-  const did = `did:key:z${base58Encode(multicodecKey)}`;
-
-  return {
-    did,
-    privateKeyHex: rawPrivate.toString('hex'),
-    publicKeyHex: rawPublic.toString('hex'),
-  };
-}
+import {
+  CONFIG_FILE,
+  loadConfig,
+  saveConfig,
+  generateDidKeyPair,
+  type TollwayConfig,
+} from './lib.js';
 
 // ─── Formatting ───────────────────────────────────────────────────────────────
 
