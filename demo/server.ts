@@ -355,7 +355,7 @@ const NAV = `
     <span class="nav-logo">tollway<span>.</span>dev</span>
     <span class="nav-badge">live demo</span>
     <div class="links">
-      <a href="/.well-known/tollway.json">policy</a>
+      <a href="/policy">policy</a>
       <a href="/articles">articles</a>
       <a href="https://github.com/TollwayProtocol/Tollway" target="_blank">github</a>
       <a href="https://www.npmjs.com/org/tollway" target="_blank">npm</a>
@@ -524,15 +524,47 @@ app.<span class="p">use</span>(tollwayMiddleware({
 });
 
 app.get('/articles', (_req, res) => {
-  res.json({
-    articles: Object.entries(ARTICLES).map(([slug, a]) => ({
-      slug,
-      title: a.title,
-      author: a.author,
-      date: a.date,
-      url: `/articles/${slug}`,
-    })),
-  });
+  const items = Object.entries(ARTICLES).map(([slug, a]) => `
+    <li>
+      <a href="/articles/${slug}">
+        <span>${a.title}</span>
+        <span style="display:flex;align-items:center;gap:12px">
+          <span class="meta">${a.author} &nbsp;·&nbsp; ${a.date}</span>
+          <span class="arrow">→</span>
+        </span>
+      </a>
+    </li>`).join('');
+
+  res.setHeader('Content-Type', 'text/html');
+  res.send(page('Articles — Tollway Demo', `
+  <div class="container">
+    <div class="article-header">
+      <div class="tag">● tollway demo · content</div>
+      <h1>Sample Articles</h1>
+      <div class="byline">Three articles guarded at different protocol conformance levels</div>
+    </div>
+    <div class="article-body" style="padding-top:8px">
+      <div style="display:grid;gap:12px;margin-bottom:32px">
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:16px 20px;display:flex;align-items:center;gap:12px">
+          <span style="font-family:var(--mono);font-size:11px;color:#4ade80;background:#0d1f16;border:1px solid #1a3a2a;padding:3px 8px;border-radius:4px">Basic</span>
+          <span style="font-size:13px;color:var(--muted)">intro-to-tollway — freely accessible, no headers required</span>
+        </div>
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:16px 20px;display:flex;align-items:center;gap:12px">
+          <span style="font-family:var(--mono);font-size:11px;color:#60a5fa;background:#0d1620;border:1px solid #1a2a3a;padding:3px 8px;border-radius:4px">Identity</span>
+          <span style="font-size:13px;color:var(--muted)">agent-identity — requires valid <code style="font-family:var(--mono);font-size:11px">X-Tollway-*</code> headers</span>
+        </div>
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:16px 20px;display:flex;align-items:center;gap:12px">
+          <span style="font-family:var(--mono);font-size:11px;color:#a78bfa;background:#140d1f;border:1px solid #2a1f3a;padding:3px 8px;border-radius:4px">Payment</span>
+          <span style="font-size:13px;color:var(--muted)">x402-micropayments — returns 402 for <code style="font-family:var(--mono);font-size:11px">train</code> scope, 0.05 USDC</span>
+        </div>
+      </div>
+      <ul class="article-list">${items}</ul>
+    </div>
+    <div class="article-footer">
+      <a href="/">← back to demo</a>
+      <span class="attribution">machine-readable: <a href="/articles" style="color:var(--muted)" onclick="event.preventDefault();fetch('/articles',{headers:{accept:'application/json'}}).then(r=>r.json()).then(d=>alert(JSON.stringify(d,null,2)))">view JSON</a></span>
+    </div>
+  </div>`));
 });
 
 app.get('/articles/:slug', (req, res) => {
@@ -564,6 +596,65 @@ app.get('/articles/:slug', (req, res) => {
       </span>
     </div>
   </div>`, desc, ));
+});
+
+app.get('/policy', (_req, res) => {
+  res.setHeader('Content-Type', 'text/html');
+  res.send(page('Policy — Tollway Demo', `
+  <div class="container">
+    <div class="article-header">
+      <div class="tag">● tollway demo · policy</div>
+      <h1>Access Policy</h1>
+      <div class="byline">What AI agents are allowed to do on this server</div>
+    </div>
+    <div class="article-body">
+      <p>This server publishes a machine-readable policy at <a href="/.well-known/tollway.json"><code style="font-family:var(--mono);font-size:13px">/.well-known/tollway.json</code></a>. Tollway-compatible agents read this automatically before making requests.</p>
+
+      <div style="margin:32px 0">
+        <div class="section-label">actions</div>
+        <div class="policy-box">
+          <div class="policy-row"><span class="key">read, search, summarize</span><span class="val green">✓ allowed</span></div>
+          <div class="policy-row"><span class="key">scrape_bulk</span><span class="val red">✗ prohibited — returns 403</span></div>
+          <div class="policy-row"><span class="key">train</span><span class="val" style="color:#f9a86a">⚡ requires payment — returns 402</span></div>
+        </div>
+      </div>
+
+      <div style="margin:32px 0">
+        <div class="section-label">pricing</div>
+        <div class="policy-box">
+          <div class="policy-row"><span class="key">currency</span><span class="val">USDC on Base Sepolia</span></div>
+          <div class="policy-row"><span class="key">free requests / day</span><span class="val">500</span></div>
+          <div class="policy-row"><span class="key">read</span><span class="val">0.001 USDC</span></div>
+          <div class="policy-row"><span class="key">summarize</span><span class="val">0.005 USDC</span></div>
+          <div class="policy-row"><span class="key">train</span><span class="val">0.05 USDC</span></div>
+        </div>
+      </div>
+
+      <div style="margin:32px 0">
+        <div class="section-label">data rules</div>
+        <div class="policy-box">
+          <div class="policy-row"><span class="key">training_allowed</span><span class="val red">false</span></div>
+          <div class="policy-row"><span class="key">attribution_required</span><span class="val green">true</span></div>
+          <div class="policy-row"><span class="key">attribution_format</span><span class="val" style="font-family:var(--mono);font-size:12px">{title} via Tollway Demo ({url})</span></div>
+          <div class="policy-row"><span class="key">cache_allowed</span><span class="val green">true</span></div>
+          <div class="policy-row"><span class="key">cache_ttl</span><span class="val">1 hour</span></div>
+        </div>
+      </div>
+
+      <div style="margin:32px 0">
+        <div class="section-label">rate limits</div>
+        <div class="policy-box">
+          <div class="policy-row"><span class="key">requests / minute</span><span class="val">30</span></div>
+          <div class="policy-row"><span class="key">requests / day</span><span class="val">500</span></div>
+        </div>
+      </div>
+
+      <p style="margin-top:8px">Machine-readable version: <a href="/.well-known/tollway.json">/.well-known/tollway.json</a></p>
+    </div>
+    <div class="article-footer">
+      <a href="/">← back to demo</a>
+    </div>
+  </div>`));
 });
 
 app.get('/health', (_req, res) => {
