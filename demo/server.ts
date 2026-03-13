@@ -347,6 +347,48 @@ const CSS = `
   }
   footer a { color: #555; }
   footer a:hover { color: var(--muted); }
+
+  /* ── Mobile ── */
+  @media (max-width: 640px) {
+    .container { padding: 0 16px; }
+    nav .inner { padding: 0 16px; gap: 8px; }
+    .nav-badge { display: none; }
+    nav .links { gap: 12px; }
+    nav .links a { font-size: 12px; }
+
+    .hero { padding: 48px 0 40px; }
+    .hero-cmd {
+      display: flex;
+      max-width: 100%;
+      overflow-x: auto;
+      white-space: nowrap;
+      font-size: 12px;
+      padding: 10px 14px;
+    }
+
+    .protocol-grid { grid-template-columns: 1fr; }
+
+    .article-list a { font-size: 14px; gap: 8px; }
+    .article-list .meta { display: none; }
+
+    .article-header { padding: 40px 0 28px; }
+
+    .article-footer {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
+    .policy-row {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 4px;
+      padding: 12px 0;
+    }
+    .policy-row .val { font-size: 13px; }
+
+    .section { padding: 32px 0; }
+  }
 `;
 
 const NAV = `
