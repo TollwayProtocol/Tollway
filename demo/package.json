@@ -10,7 +10,7 @@
     "dev": "tsx server.ts"
   },
   "dependencies": {
-    "@tollway/server": "^0.1.0",
+    "@tollway/server": "^0.2.0",
     "express": "^4.19.2"
   },
   "devDependencies": {

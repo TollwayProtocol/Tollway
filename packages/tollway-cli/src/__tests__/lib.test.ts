@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import * as nodeCrypto from 'crypto';
 import {
   base58Encode,
   generateDidKeyPair,
@@ -28,7 +29,7 @@ describe('base58Encode', () => {
 
   test('produces only characters from the base58 alphabet', () => {
     const input = new Uint8Array(34);
-    crypto.getRandomValues(input);
+    nodeCrypto.randomFillSync(input);
     const encoded = base58Encode(input);
     expect(encoded).toMatch(/^[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+$/);
   });
@@ -36,7 +37,7 @@ describe('base58Encode', () => {
   test('does not contain ambiguous characters (0, O, I, l)', () => {
     for (let i = 0; i < 20; i++) {
       const bytes = new Uint8Array(32);
-      crypto.getRandomValues(bytes);
+      nodeCrypto.randomFillSync(bytes);
       const encoded = base58Encode(bytes);
       expect(encoded).not.toMatch(/[0OIl]/);
     }
