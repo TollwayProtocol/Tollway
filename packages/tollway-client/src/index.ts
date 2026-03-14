@@ -5,6 +5,8 @@
  */
 
 import * as crypto from 'crypto';
+import { load as cheerioLoad } from 'cheerio';
+import { parse as parseYaml } from 'yaml';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -242,6 +244,128 @@ function buildAttribution(url: string, policy: TollwayPolicy | null, title?: str
     .replace('{url}', url);
 }
 
+// ─── Schema Types ─────────────────────────────────────────────────────────────
+
+interface TollwaySchema {
+  site: string;
+  version: string;
+  path_pattern?: string;
+  output?: Record<string, string>;
+  selectors: Record<string, string>;
+  fallback_selectors?: Record<string, string[]>;
+  transformations?: Record<string, { strip_prefix?: string; strip_suffix?: string; join?: string }>;
+  derived?: Record<string, string>;
+}
+
+// ─── Schema Cache ─────────────────────────────────────────────────────────────
+
+const schemaCache = new Map<string, { schema: TollwaySchema; fetchedAt: number }>();
+const SCHEMA_CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
+
+async function fetchSchema(schemaUrl: string): Promise<TollwaySchema | null> {
+  const cached = schemaCache.get(schemaUrl);
+  if (cached && Date.now() - cached.fetchedAt < SCHEMA_CACHE_TTL_MS) {
+    return cached.schema;
+  }
+  try {
+    const res = await globalThis.fetch(schemaUrl, {
+      headers: { 'Accept': 'text/yaml, application/yaml, text/plain' },
+      signal: AbortSignal.timeout(3000),
+    });
+    if (!res.ok) return null;
+    const text = await res.text();
+    const schema = parseYaml(text) as TollwaySchema;
+    schemaCache.set(schemaUrl, { schema, fetchedAt: Date.now() });
+    return schema;
+  } catch {
+    return null;
+  }
+}
+
+// ─── CSS Selector Extraction ──────────────────────────────────────────────────
+
+function applySelectors(
+  $: ReturnType<typeof cheerioLoad>,
+  schema: TollwaySchema,
+): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  const outputTypes = schema.output ?? {};
+
+  for (const [field, selector] of Object.entries(schema.selectors)) {
+    const type = outputTypes[field] ?? 'string';
+    let value = extractField($, selector, type);
+
+    // Try fallbacks if primary selector returns nothing
+    if ((value === null || value === '' || (Array.isArray(value) && value.length === 0))
+        && schema.fallback_selectors?.[field]) {
+      for (const fallback of schema.fallback_selectors[field]) {
+        value = extractField($, fallback, type);
+        if (value !== null && value !== '' && !(Array.isArray(value) && value.length === 0)) break;
+      }
+    }
+
+    // Apply transformations
+    const tx = schema.transformations?.[field];
+    if (tx && typeof value === 'string') {
+      if (tx.strip_prefix && value.startsWith(tx.strip_prefix)) {
+        value = value.slice(tx.strip_prefix.length);
+      }
+      if (tx.strip_suffix && value.endsWith(tx.strip_suffix)) {
+        value = value.slice(0, -tx.strip_suffix.length);
+      }
+    }
+    if (tx?.join && Array.isArray(value)) {
+      value = value.join(tx.join);
+    }
+
+    if (value !== null && value !== '' && !(Array.isArray(value) && value.length === 0)) {
+      result[field] = value;
+    }
+  }
+
+  // Derived fields (template strings referencing extracted fields)
+  if (schema.derived) {
+    for (const [field, template] of Object.entries(schema.derived)) {
+      result[field] = template.replace(/\{(\w+)\}/g, (_, key) =>
+        String(result[key] ?? ''),
+      );
+    }
+  }
+
+  return result;
+}
+
+function extractField(
+  $: ReturnType<typeof cheerioLoad>,
+  selector: string,
+  type: string,
+): string | string[] | null {
+  const els = $(selector);
+  if (els.length === 0) return type === 'array' ? [] : null;
+
+  if (type === 'array') {
+    return els.map((_, el) => $(el).text().trim()).get().filter(Boolean);
+  }
+
+  const el = els.first();
+
+  // For datetime fields, prefer the datetime attribute
+  if (type === 'datetime') {
+    return el.attr('datetime') ?? el.text().trim() || null;
+  }
+
+  // For links, prefer href
+  if (el.is('a')) {
+    return el.attr('href') ?? el.text().trim() || null;
+  }
+
+  // For link[rel=canonical] and meta, prefer attribute values
+  if (el.is('link')) return el.attr('href') ?? null;
+  if (el.is('meta')) return el.attr('content') ?? null;
+
+  return el.text().trim() || null;
+}
+
 // ─── Structured Extraction ────────────────────────────────────────────────────
 
 async function extractStructured(
@@ -249,33 +373,36 @@ async function extractStructured(
   url: string,
   schemaUrl?: string,
 ): Promise<Record<string, unknown> | null> {
-  // Phase 1: Try schema-based extraction if schemaUrl provided
+  const $ = cheerioLoad(html);
+
+  // Phase 1: Schema-based extraction
   if (schemaUrl) {
-    try {
-      const schemaRes = await globalThis.fetch(schemaUrl);
-      if (schemaRes.ok) {
-        // TODO: Parse YAML schema and apply CSS selectors
-        // Requires a YAML parser and DOM parser (e.g. parse5 server-side)
+    const schema = await fetchSchema(schemaUrl);
+    if (schema) {
+      const extracted = applySelectors($, schema);
+      if (Object.keys(extracted).length > 0) {
+        return {
+          ...extracted,
+          _schema: `${schema.site}@${schema.version}`,
+          _url: url,
+        };
       }
-    } catch {
-      // Schema fetch failed, fall through
     }
   }
 
-  // Phase 2: Basic metadata extraction from HTML
-  const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-  const descMatch = html.match(/<meta[^>]+name="description"[^>]+content="([^"]+)"/i);
-  const ogTitleMatch = html.match(/<meta[^>]+property="og:title"[^>]+content="([^"]+)"/i);
-  const ogDescMatch = html.match(/<meta[^>]+property="og:description"[^>]+content="([^"]+)"/i);
-  const canonicalMatch = html.match(/<link[^>]+rel="canonical"[^>]+href="([^"]+)"/i);
-
-  const title = ogTitleMatch?.[1] ?? titleMatch?.[1] ?? null;
-  const description = ogDescMatch?.[1] ?? descMatch?.[1] ?? null;
+  // Phase 2: Basic metadata extraction
+  const title = $('meta[property="og:title"]').attr('content')
+    ?? $('title').first().text().trim()
+    || null;
+  const description = $('meta[property="og:description"]').attr('content')
+    ?? $('meta[name="description"]').attr('content')
+    || null;
+  const canonical = $('link[rel="canonical"]').attr('href') ?? url;
 
   if (!title && !description) return null;
 
   return {
-    url: canonicalMatch?.[1] ?? url,
+    url: canonical,
     title,
     description,
     domain: new URL(url).hostname,

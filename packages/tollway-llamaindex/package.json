@@ -1,19 +1,20 @@
 {
-  "name": "@tollway/client",
-  "version": "0.2.0",
-  "description": "Drop-in fetch replacement for AI agents — identity headers, policy enforcement, and payment flows",
+  "name": "@tollway/llamaindex",
+  "version": "0.1.0",
+  "description": "LlamaIndex integration for Tollway — TollwayReader for agent web access with identity, policy, and payments",
   "keywords": [
     "tollway",
+    "llamaindex",
     "ai-agent",
-    "did",
-    "micropayments",
+    "reader",
     "web-access",
-    "robots-txt"
+    "did",
+    "micropayments"
   ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/TollwayProtocol/Tollway.git",
-    "directory": "packages/tollway-client"
+    "directory": "packages/tollway-llamaindex"
   },
   "license": "MIT",
   "type": "module",
@@ -31,10 +32,6 @@
   "bugs": {
     "url": "https://github.com/TollwayProtocol/Tollway/issues"
   },
-  "funding": {
-    "type": "github",
-    "url": "https://github.com/sponsors/TollwayProtocol"
-  },
   "files": [
     "dist",
     "LICENSE",
@@ -43,19 +40,21 @@
   "scripts": {
     "build": "tsup",
     "test": "jest",
-    "test:coverage": "jest --coverage",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "cheerio": "^1.0.0",
-    "yaml": "^2.8.2"
+    "@tollway/client": "^0.2.0"
+  },
+  "peerDependencies": {
+    "llamaindex": ">=0.5.0"
   },
   "devDependencies": {
     "@types/jest": "^29.5.14",
     "@types/node": "^20.14.10",
     "jest": "^29.7.0",
+    "llamaindex": "^0.9.0",
     "ts-jest": "^29.2.3",
     "tsup": "^8.2.4",
     "typescript": "^5.5.4"

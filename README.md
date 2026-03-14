@@ -58,10 +58,13 @@ That's it.
 
 | Package | Description | Install |
 |---|---|---|
-| [`@tollway/client`](./packages/tollway-client) | TypeScript agent client. Attaches identity headers, reads `tollway.json`, handles `402` payment retries with Ed25519 signing. | `npm i @tollway/client` |
+| [`@tollway/client`](./packages/tollway-client) | TypeScript agent client. Attaches identity headers, reads `tollway.json`, handles `402` payment retries with Ed25519 signing, and applies community CSS extraction schemas. | `npm i @tollway/client` |
 | [`@tollway/server`](./packages/tollway-server) | Express/Next.js middleware. Serves `tollway.json`, validates signatures, enforces nonce/timestamp, returns `402` for paid actions. | `npm i @tollway/server` |
 | [`@tollway/cli`](./packages/tollway-cli) | CLI tool. `tollway init` generates a DID keypair; `tollway fetch` makes signed requests from the terminal. | `npm i -g @tollway/cli` |
 | [`@tollway/payments`](./packages/tollway-payments) | USDC payment handler for Base mainnet + Sepolia. Integrates with `@tollway/client` to complete `402` flows on-chain. | `npm i @tollway/payments` |
+| [`@tollway/reputation`](./packages/tollway-reputation) | Reference reputation oracle. Tracks agent DID scores from server observations. Run standalone or embed in your own server. | `npm i @tollway/reputation` |
+| [`@tollway/langchain`](./packages/tollway-langchain) | LangChain integration. `TollwayRetriever` and `TollwayLoader` — fetch web content via Tollway inside any LangChain chain or agent. | `npm i @tollway/langchain` |
+| [`@tollway/llamaindex`](./packages/tollway-llamaindex) | LlamaIndex integration. `TollwayReader` — load web documents via Tollway into any LlamaIndex pipeline. | `npm i @tollway/llamaindex` |
 | [`tollway-server`](./sdks/python) | Python middleware for Flask and FastAPI. Ed25519 verification via PyNaCl, same protocol semantics as the TypeScript server. | `pip install tollway-server` |
 
 ---
@@ -175,7 +178,11 @@ Start at Basic in 5 minutes. Upgrade as needed.
 │   ├── tollway-client/        # TypeScript agent client (@tollway/client)
 │   ├── tollway-server/        # Express/Next.js middleware (@tollway/server)
 │   ├── tollway-cli/           # CLI tool (@tollway/cli)
-│   └── tollway-payments/      # USDC payment handler (@tollway/payments)
+│   ├── tollway-payments/      # USDC payment handler (@tollway/payments)
+│   ├── tollway-reputation/    # Reputation oracle server (@tollway/reputation)
+│   ├── tollway-langchain/     # LangChain integration (@tollway/langchain)
+│   └── tollway-llamaindex/    # LlamaIndex integration (@tollway/llamaindex)
+├── schemas/                   # Community CSS extraction schemas (10+ sites)
 ├── sdks/
 │   └── python/                # Python SDK (tollway-server on PyPI)
 ├── demo/                      # Live demo server (tollway.vercel.app)
@@ -187,15 +194,15 @@ Start at Basic in 5 minutes. Upgrade as needed.
 ## Roadmap
 
 - [x] v0.1 spec (SPEC.md)
-- [x] `@tollway/client` — TypeScript agent client
+- [x] `@tollway/client` — TypeScript agent client with YAML schema extraction
 - [x] `@tollway/server` — Express/Next.js middleware
 - [x] `@tollway/cli` — CLI tool with DID keygen
 - [x] `@tollway/payments` — USDC payment handler (Base)
 - [x] `tollway-server` — Python SDK (Flask + FastAPI)
 - [x] Live demo server
-- [ ] LangChain integration
-- [ ] LlamaIndex connector
-- [ ] Reputation oracle reference implementation
+- [x] `@tollway/langchain` — LangChain `TollwayRetriever` + `TollwayLoader`
+- [x] `@tollway/llamaindex` — LlamaIndex `TollwayReader`
+- [x] `@tollway/reputation` — Reference reputation oracle
 - [ ] IETF Internet Draft submission
 
 ---
