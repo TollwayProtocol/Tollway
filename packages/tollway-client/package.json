@@ -48,6 +48,10 @@
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist"
   },
+  "dependencies": {
+    "cheerio": "^1.0.0",
+    "yaml": "^2.8.2"
+  },
   "devDependencies": {
     "@types/jest": "^29.5.14",
     "@types/node": "^20.14.10",
