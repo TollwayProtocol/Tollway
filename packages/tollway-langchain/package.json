@@ -1,0 +1,68 @@
+{
+  "name": "@tollway/langchain",
+  "version": "0.1.0",
+  "description": "LangChain integration for Tollway — TollwayRetriever for agent web access with identity, policy, and payments",
+  "keywords": [
+    "tollway",
+    "langchain",
+    "ai-agent",
+    "retriever",
+    "web-access",
+    "did",
+    "micropayments"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TollwayProtocol/Tollway.git",
+    "directory": "packages/tollway-langchain"
+  },
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "homepage": "https://tollway.dev",
+  "bugs": {
+    "url": "https://github.com/TollwayProtocol/Tollway/issues"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "jest",
+    "lint": "eslint src",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@tollway/client": "^0.2.0"
+  },
+  "peerDependencies": {
+    "@langchain/core": ">=0.2.0"
+  },
+  "devDependencies": {
+    "@langchain/core": "^0.3.0",
+    "@types/jest": "^29.5.14",
+    "@types/node": "^20.14.10",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.3",
+    "tsup": "^8.2.4",
+    "typescript": "^5.5.4"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
