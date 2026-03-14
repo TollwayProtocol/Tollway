@@ -8,13 +8,13 @@
 
 ---
 
-AI agents now generate more web traffic than humans. Yet there's no standard for how they should identify themselves, request permission, or compensate publishers. The result: an arms race between agents and sites, with both sides losing.
+AI agents now generate more web traffic than humans. Yet every agent that hits a website is anonymous — indistinguishable from a scraper, a DDoS bot, or a competing crawler. Sites respond the only way they can: block everything and ask questions later.
 
-**Tollway makes the relationship cooperative.**
+**Tollway gives agents an identity they can stand behind.**
 
-Sites publish a `tollway.json` file declaring what agents can do and what they should pay. Agents attach identity headers proving who they are and why they're there. Both sides win: publishers get revenue and control, agents get reliable access and structured data.
+An agent running Tollway attaches a signed identifier to every request: who it is, what it's trying to do, and why. Sites that speak Tollway can verify that identity cryptographically and make real decisions — serve richer content to trusted agents, apply different rate limits, enforce attribution, or optionally charge for premium access.
 
-Think of it as `robots.txt` for the agentic era — with identity, economics, and structured extraction built in.
+Think of it as `robots.txt` for the agentic era — with identity, policy, and structured extraction built in. Payments are there when you need them, but they're not the point.
 
 ---
 
@@ -24,14 +24,16 @@ Think of it as `robots.txt` for the agentic era — with identity, economics, an
 ```json
 {
   "version": "0.1",
-  "pricing": {
-    "free_requests_per_day": 100,
-    "schedule": [{ "action": "read", "price": "0.001" }]
-  },
   "data_policy": {
     "training_allowed": false,
-    "attribution_required": true
-  }
+    "attribution_required": true,
+    "cache_ttl_seconds": 3600
+  },
+  "actions": {
+    "allowed": ["read", "search", "summarize"],
+    "prohibited": ["scrape_bulk"]
+  },
+  "rate_limits": { "requests_per_minute": 60 }
 }
 ```
 
@@ -43,14 +45,12 @@ X-Tollway-Scope: read
 X-Tollway-Signature: base64url(ed25519_signature)
 ```
 
-**3. Site responds with content or a 402 + price**
-```json
-{ "price": "0.001", "currency": "USDC", "address": "0x..." }
-```
+**3. Site verifies identity and serves content**
 
-**4. Agent pays, retries, gets structured data back**
+The site knows who's asking, what for, and can make a real decision. That's the core loop.
 
-That's it.
+**Optional: charge for premium access**
+Sites can also return `HTTP 402` with a USDC price. The agent pays on Base and retries with a receipt. No accounts, no billing dashboards — but only worth enabling once you have agents you trust.
 
 ---
 
@@ -76,13 +76,11 @@ That's it.
 ```typescript
 import { fetch } from '@tollway/client';
 
-// Drop-in replacement for fetch
-// Automatically handles: identity headers, payment flows, structured extraction
+// Drop-in replacement for fetch — adds identity headers automatically
 const result = await fetch('https://techcrunch.com/2026/01/01/ai-news/', {
   tollway: {
     did: process.env.AGENT_DID,
     privateKey: process.env.AGENT_PRIVATE_KEY,
-    wallet: process.env.AGENT_WALLET,
     purpose: 'competitive-research',
     scope: 'read',
   }
@@ -90,9 +88,8 @@ const result = await fetch('https://techcrunch.com/2026/01/01/ai-news/', {
 
 console.log(result.data);        // Structured JSON if schema available
 console.log(result.text);        // Raw text content
-console.log(result.attribution); // "TechCrunch (https://...)"
-console.log(result.paid);        // true/false
-console.log(result.cost);        // "0.001" USDC
+console.log(result.attribution); // "TechCrunch (https://...)" if required
+console.log(result.policy);      // Site's declared rules for agents
 ```
 
 ### For Site Owners
@@ -100,24 +97,23 @@ console.log(result.cost);        // "0.001" USDC
 ```typescript
 import { tollwayMiddleware } from '@tollway/server';
 
-// Express
+// Express — start here, add pricing later if you want it
 app.use(tollwayMiddleware({
   policy: {
-    freeRequestsPerDay: 100,
-    pricing: [{ action: 'read', price: '0.001' }],
     trainingAllowed: false,
     attributionRequired: true,
+    allowedActions: ['read', 'search', 'summarize'],
+    prohibitedActions: ['scrape_bulk'],
   },
-  paymentAddress: process.env.WALLET_ADDRESS,
 }));
 ```
 
 This automatically:
-- Serves `/.well-known/tollway.json`
-- Parses Tollway identity headers
-- Enforces nonce and timestamp freshness checks
-- Returns `402` with pricing for configured paid actions
-- Logs agent traffic to your application output
+- Serves `/.well-known/tollway.json` so agents can read your policy
+- Validates DID signatures — you know exactly which agent is making each request
+- Enforces nonce and timestamp freshness to prevent replay attacks
+- Logs structured agent traffic to your application output
+- **Optional:** add `paymentAddress` + `pricing` to enable paid access
 
 ---
 
@@ -144,14 +140,14 @@ selectors:
 
 ## Why Not Just Use...
 
-**Cloudflare Pay Per Crawl?**  
-Cloudflare's implementation is centralized and covers ~20% of the web. Tollway is the open standard that any implementation — including Cloudflare's — can build on.
+**Cloudflare Pay Per Crawl?**
+Centralized and limited to Cloudflare-proxied sites. Tollway is the open standard — Cloudflare's implementation could be built on top of it.
 
-**MCP / A2A?**  
+**MCP / A2A?**
 MCP connects agents to tools. A2A connects agents to agents. Neither addresses how agents access arbitrary open web content. Tollway fills that gap.
 
-**robots.txt?**  
-`robots.txt` is binary allow/deny with no identity, no economics, and no structured data. Tollway is its successor.
+**robots.txt?**
+`robots.txt` is binary allow/deny with no identity and no way to distinguish agents. Tollway is its successor — same simple deployment, far richer semantics.
 
 ---
 

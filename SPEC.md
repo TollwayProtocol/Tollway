@@ -9,13 +9,13 @@
 
 ## Abstract
 
-Tollway is an open protocol for structured AI agent access to web content. It defines how agents identify themselves, how sites declare access policies, and how micropayments settle access to premium content — all over standard HTTP.
+Tollway is an open protocol for structured AI agent access to web content. It defines how agents identify themselves and how sites declare access policies — all over standard HTTP. Payments are an optional extension for sites that want to monetise agent access.
 
-The protocol has three pillars:
+The protocol has three layers, each independently useful:
 
-1. **Identity** — Agents sign every request with an Ed25519 keypair. Sites know who is asking.
-2. **Policy** — Sites publish `tollway.json` declaring what agents can do, rate limits, and pricing.
-3. **Payments** — HTTP 402 + x402. Agents pay in USDC on Base when content requires it.
+1. **Identity** — Agents sign every request with an Ed25519 keypair. Sites know who is asking, what for, and can hold agents accountable.
+2. **Policy** — Sites publish `tollway.json` declaring what agents can do, rate limits, caching rules, and attribution requirements.
+3. **Payments** *(optional)* — HTTP 402 + USDC on Base, for sites that want to charge for premium or bulk access.
 
 ---
 
@@ -38,16 +38,17 @@ The protocol has three pillars:
 
 ## 1. Motivation
 
-AI agents increasingly browse the web on behalf of users and organizations. Today they do so with no identity, no accountability, and no mechanism to compensate publishers for training data or premium access.
+AI agents increasingly browse the web on behalf of users and organizations. Today they do so anonymously — every agent is indistinguishable from a scraper, a competitor's crawler, or a bot conducting a denial-of-service attack. Sites respond the only way they can: blanket blocking, aggressive rate limiting, and CAPTCHAs that degrade everyone.
 
-`robots.txt` was designed for crawlers that respect conventions voluntarily. It has no authentication, no payment layer, and no way to distinguish a research agent from a bulk scraper.
+`robots.txt` was designed for crawlers that respect conventions voluntarily. It has no authentication and no way to distinguish a responsible research agent from a bulk scraper. The result is an adversarial relationship that serves neither side.
 
-Tollway gives sites a machine-readable policy layer with real enforcement:
+Tollway gives agents a cryptographic identity they can stand behind and gives sites a machine-readable policy layer with real enforcement:
 
-- An agent that wants to train on content must be able to pay for it.
-- An agent that misbehaves can be blocked by DID.
-- A publisher can allow free reads but charge for bulk training.
+- An agent can prove who it is and why it's accessing content — without any prior relationship with the site.
+- A site can express nuanced access rules: allowed actions, prohibited actions, rate limits, attribution requirements, caching policy.
+- An agent that misbehaves can be blocked by DID and flagged in reputation oracles.
 - Attribution requirements are expressed programmatically, not hoped for.
+- Sites that want to charge for bulk or premium access can do so via the optional HTTP 402 payment flow.
 
 ---
 
